@@ -33,6 +33,57 @@ class Assertion {
     }
     t(fn) { this._normal(fn) }
     f(fn) { this._normal(fn, true) }
+    e(type, msg, fn) {
+
+    }
+    _error(type, msg, fn) {
+//        if (fn instanceof this._AsyncFunction) { this._eAsync(fn, isFalseSuccess) }
+//        else if ('function'===typeof fn) { this._eFn(fn, isFalseSuccess) }
+//        else if ('boolean'===typeof fn) { this._eB(fn, isFalseSuccess) }
+//        else { this._consoleFail(`引数は真偽値かそれを返す関数であるべきです。`, this.t) }
+        if (fn instanceof this._AsyncFunction) { this._eAsync(type, msg, fn) }
+        else if ('function'===typeof fn) { this._eFn(type, msg, fn) }
+        else { this._consoleFail(`引数は例外を発生させる関数であるべきです。`, this.t) }
+    }
+    _eAsync(type, msg, fn) {
+        fn().then((bool)=>{
+            this.__errorMsgErr(isFalseSuccess, err)
+        }).catch(err=>{
+            //this.__eCheck(bool, isFalseSuccess)
+            this.__eCheck(type, msg, err)
+        })
+    }
+    _eFn(type, msg, fn) {
+        try {
+            const bool = fn()
+            this.__errorMsgErr(isFalseSuccess, err)
+        } catch(err) {
+            //this.__eCheck(bool, isFalseSuccess)
+            this.__eCheck(type, msg, err)
+        }
+    }
+//    _eB(fn, isFalseSuccess) {
+//        if (isFalseSuccess ? fn : !fn) { this._consoleFail(this.__errorMsg(isFalseSuccess), this.t) }
+//    }
+//    __eCheck(bool, isFalseSuccess) {
+    __eCheck(type, msg, err) {
+        if (!(err instanceof type)) { }
+        if ('boolean'!==typeof bool) { return this._consoleFail('テストコードは最後に真偽値を返してください。', this.t) }
+        if (isFalseSuccess ? bool : !bool) { return this._consoleFail(this.__failMsg(isFalseSuccess), this.t) }
+    }
+    __errorMsg(isFalseSuccess) {
+//        const j = ['真','偽']
+//        if (isFalseSuccess) { j.reverse() }
+//        return `${j[0]}であるべき所が${j[1]}です。`
+        return `例外発生すべき所で例外発生せず正常終了しました。`
+    }
+    //__errorMsgErr(isFalseSuccess, err) { this._consoleError(`${isFalseSuccess ? '偽' : '真'}であるべき所で例外発生しました。`, err, this.t) }
+    __errorMsgErr(isFalseSuccess, err) { this._consoleError(`${isFalseSuccess ? '偽' : '真'}であるべき所で例外発生しました。`, err, this.t) }
+
+
+
+
+
     _normal(fn, isFalseSuccess) {
         if (fn instanceof this._AsyncFunction) { this._nAsync(fn, isFalseSuccess) }
         else if ('function'===typeof fn) { this._nFn(fn, isFalseSuccess) }
