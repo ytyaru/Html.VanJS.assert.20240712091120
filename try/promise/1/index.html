@@ -1,0 +1,28 @@
+<script>
+window.addEventListener('DOMContentLoaded', async(e)=>{
+//const wait = (ms) =>new Promise((resolve)=>setTimeout(resolve, ms))
+//const wait = (ms) =>new Promise((resolve,reject)=>if(Number.isFinite(Number.isInteger(ms) && 0<=ms)){setTimeout(resolve, ms)}else{reject(new TypeError(`第一引数msはミリ秒を表す0以上の整数値であるべきです。`))})
+/*
+const wait = (ms) =>new Promise((resolve,reject)=>{
+    console.log(ms, Number.isInteger(ms), 0<=ms)
+    if(Number.isInteger(ms) && 0<=ms){setTimeout(resolve, ms)}
+    else{reject(new TypeError(`第一引数msはミリ秒を表す0以上の整数値であるべきです。`))}
+})
+wait(2000).then(()=>console.log('一定時間後に実行される。')).catch(e=>console.error(e))
+wait('エラー値').then(()=>console.log('一定時間後に実行されたらダメ。')).catch(e=>console.error(e))
+//const promise = wait(2000)
+//await p()
+*/
+const checkAge = (age)=>new Promise((resolve, reject)=>{
+    if(Number.isInteger(age) && 0<=age && age<=100){resolve(age)}
+    else{reject(new TypeError(`第一引数ageは年齢を表す0以上100以下の整数値であるべきです。`))}
+})
+
+checkAge(0).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge(100).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge(-1).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge(101).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge('A').then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+
+})
+</script>

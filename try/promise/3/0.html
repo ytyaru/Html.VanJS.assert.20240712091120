@@ -1,0 +1,57 @@
+<script>
+window.addEventListener('DOMContentLoaded', async(e)=>{
+/*
+async function checkAge(age) {
+    if(Number.isInteger(age) && 0<=age && age<=100){resolve(age)}
+    else{reject(new TypeError(`第一引数ageは年齢を表す0以上100以下の整数値であるべきです。`))}
+}
+*/
+/*
+const checkAge = (age)=>new Promise((resolve, reject)=>{
+    if(Number.isInteger(age) && 0<=age && age<=100){resolve(age)}
+    else{reject(new TypeError(`第一引数ageは年齢を表す0以上100以下の整数値であるべきです。`))}
+})
+
+checkAge(0).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge(100).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge(-1).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge(101).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge('A').then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+
+const age = checkAge(0)
+*/
+/*
+const testT = (...args)=>new Promise((resolve, reject)=>{
+    try {
+        const actual = resolve(...args)
+    } catch(err) {
+
+    }
+    if(Number.isInteger(age) && 0<=age && age<=100){resolve(age)}
+    else{reject(new TypeError(`第一引数ageは年齢を表す0以上100以下の整数値であるべきです。`))}
+})
+a.t(async(target)=await target.trueAsync())
+*/
+/*
+checkAge(0).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge(100).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge(-1).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge(101).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge('A').then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+*/
+
+async function getTrueAsync() { return true }
+console.log(getTrueAsync())
+const getTrueAsync2 = async()=>true
+console.log(getTrueAsync2())
+console.log(getTrueAsync2().then((bool)=>console.log(bool)))
+console.log(true===await getTrueAsync2())
+console.log('boolean'===typeof await getTrueAsync2())
+
+
+// a.t(true)
+// a.t(()=>true)
+// a.t(async()=>true)
+
+})
+</script>
