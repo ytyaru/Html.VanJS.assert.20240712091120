@@ -34,52 +34,37 @@ class Assertion {
     t(fn) { this._normal(fn) }
     f(fn) { this._normal(fn, true) }
     _normal(fn, isFalseSuccess) {
-        if (fn instanceof this._AsyncFunction) { this._nAsync(fn) }
-        else if ('function'===typeof fn) { this._nFn(fn) }
-        else if ('boolean'===typeof fn) { this._nB(fn) }
+        if (fn instanceof this._AsyncFunction) { this._nAsync(fn, isFalseSuccess) }
+        else if ('function'===typeof fn) { this._nFn(fn, isFalseSuccess) }
+        else if ('boolean'===typeof fn) { this._nB(fn, isFalseSuccess) }
         else { this._consoleFail(`引数は真偽値かそれを返す関数であるべきです。`, this.t) }
-//        if (fn instanceof this._AsyncFunction) { this._tAsync(fn) }
-//        else if ('function'===typeof fn) { this._tFn(fn) }
-//        else if ('boolean'===typeof fn) { this._tB(fn) }
-//        else { this._consoleFail(`引数は真偽値かそれを返す関数であるべきです。`, this.t) }
     }
     _nAsync(fn, isFalseSuccess) {
         fn().then((bool)=>{
-//            if ('boolean'!==typeof bool) { return this._consoleFail('テストコードは最後に真偽値を返してください。', this.t) }
-//            if (!bool) { return this._consoleFail(`真であるべき所が偽です。`, this.t) }
             this.__nCheck(bool, isFalseSuccess)
         }).catch(err=>{
-            //this._consoleError('真であるべき所で例外発生しました。', err, this.t)
             this.__failMsgErr(isFalseSuccess, err)
         })
     }
     _nFn(fn, isFalseSuccess) {
         try {
             const bool = fn()
-//            if ('boolean'!==typeof bool) { return this._consoleFail('テストコードは最後に真偽値を返してください。', this.t) }
-//            if (!bool) { return this._consoleFail(`真であるべき所が偽です。`, this.t) }
             this.__nCheck(bool, isFalseSuccess)
         } catch(err) {
-            //this._consoleError('真であるべき所で例外発生しました。', err, this.t)
             this.__failMsgErr(isFalseSuccess, err)
         }
     }
     _nB(fn, isFalseSuccess) {
-        //if (!fn) { this._consoleFail(`真であるべき所が偽です。`, this.t) }
         if (isFalseSuccess ? fn : !fn) { this._consoleFail(this.__failMsg(isFalseSuccess), this.t) }
     }
     __nCheck(bool, isFalseSuccess) {
         if ('boolean'!==typeof bool) { return this._consoleFail('テストコードは最後に真偽値を返してください。', this.t) }
-        //if (!bool) { return this._consoleFail(`真であるべき所が偽です。`, this.t) }
-        if (!bool) { return this._consoleFail(this.__failMsg(isFalseSuccess), this.t) }
+        if (isFalseSuccess ? bool : !bool) { return this._consoleFail(this.__failMsg(isFalseSuccess), this.t) }
     }
     __failMsg(isFalseSuccess) {
         const j = ['真','偽']
         if (isFalseSuccess) { j.reverse() }
         return `${j[0]}であるべき所が${j[1]}です。`
-//        const expected = isFalseSuccess ? '偽' : '真'
-//        const actual = isFalseSuccess ? '真' : '偽'
-//        return `${expected}であるべき所が${actual}です。`
     }
     __failMsgErr(isFalseSuccess, err) { this._consoleError(`${isFalseSuccess ? '偽' : '真'}であるべき所で例外発生しました。`, err, this.t) }
 
@@ -200,6 +185,7 @@ class Assertion {
 }
 const t = new TestTarget()
 const a = new Assertion()
+/*
 a.t(async()=>await t.getTrueAsync())
 a.t(async()=>await t.getFalseAsync())
 a.t(async()=>await t.throwErrorAsync())
@@ -210,6 +196,21 @@ a.t(t.getTrue())
 a.t(t.getFalse())
 a.t(t.throwError()) // 例外が起きた時キャッチできないが、それはどこでも同じ
 a.t(0)
+*/
+/*
+a.f(async()=>await t.getTrueAsync())
+a.f(async()=>await t.getFalseAsync())
+a.f(async()=>await t.throwErrorAsync())
+a.f(()=>t.getTrue())
+a.f(()=>t.getFalse())
+a.f(()=>t.throwError())
+a.f(t.getTrue())
+a.f(t.getFalse())
+a.f(t.throwError()) // 例外が起きた時キャッチできないが、それはどこでも同じ
+a.f(0)
+*/
+/*
+*/
 
 
 /*
