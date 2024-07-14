@@ -34,7 +34,28 @@ class Assertion {
     t(fn) { this._normal(fn) }
     f(fn) { this._normal(fn, true) }
     e(type, msg, fn) {
-
+        if (this._ePrmErr(type, msg, fn)) return
+        return this._error(type, msg, fn)
+    }
+    _ePrmErr(type, msg, fn) {
+        let eMsgs = []
+        if ([type,msg,fn].some(v=>this.__isNullOrUndefined(v))) { eMsgs.push(`引数は次の3つ必要です:\n1. 期待する例外型\n2. 期待する例外メッセージ(String/RegExp)\n3. 例外発生する無名関数`) }
+        //if (!type || !msg || !fn) { eMsgs.push(`引数は次の3つ必要です:\n1. 期待する例外型\n2. 期待する例外メッセージ(String/RegExp)\n3. 例外発生する無名関数`) }
+        if (!this.__isGenealogy(type, Error)) { eMsgs.push(`第一引数は期待する例外型でありErrorかそれを継承した型であるべきです。`) }
+        if ('string'!==typeof msg && !(msg instanceof String)) { eMsgs.push(`第二引数は期待する例外メッセージを示す文字列型Stringか正規表現RegExp型であるべきです。`) }
+        if (!(fn instanceof this._AsyncFunction) && 'function'!==typeof fn) { eMsgs.push(`第三引数は例外を発生させる関数であるべきです。`) }
+        if (0<eMsgs.length) {
+            this._consoleFail('引数不正です。\n' + eMsgs.join('\n'), this.t)
+            return true
+        }
+//        if (!type || !msg || !fn) {return this._consoleFail(`引数不足です。引数は次の3つ必要です:\n1. 期待する例外型\n2. 期待する例外メッセージ(String/RegExp)\n3. 例外発生する無名関数`, this.t) }
+//        if (this.__isGenealogy(type, Error)) { return `型が不正です。期待する型はErrorかそれを継承した型であるべきです。` }
+    }
+    
+    __isNullOrUndefined(v) {
+        if (v === null) return true;
+        if(v === undefined) return true;
+        return false;
     }
     _error(type, msg, fn) {
 //        if (fn instanceof this._AsyncFunction) { this._eAsync(fn, isFalseSuccess) }
@@ -47,7 +68,8 @@ class Assertion {
     }
     _eAsync(type, msg, fn) {
         fn().then((bool)=>{
-            this.__errorMsgErr(isFalseSuccess, err)
+            this._consoleFail(`例外発生すべき所で例外発生せず正常終了しました。`, this.t)
+//            this.__errorMsgErr(isFalseSuccess, err)
         }).catch(err=>{
             //this.__eCheck(bool, isFalseSuccess)
             this.__eCheck(type, msg, err)
@@ -56,7 +78,8 @@ class Assertion {
     _eFn(type, msg, fn) {
         try {
             const bool = fn()
-            this.__errorMsgErr(isFalseSuccess, err)
+            //this.__errorMsgErr(type, msg, err)
+            this._consoleFail(`例外発生すべき所で例外発生せず正常終了しました。`, this.t)
         } catch(err) {
             //this.__eCheck(bool, isFalseSuccess)
             this.__eCheck(type, msg, err)
@@ -67,9 +90,52 @@ class Assertion {
 //    }
 //    __eCheck(bool, isFalseSuccess) {
     __eCheck(type, msg, err) {
+        const eMsgs = [this.__eCheckTypeMsg(type, err), this.__eCheckMsgMsg(msg, err)].filter(v=>v)
+        this._consoleFail(`テスト失敗: ${2<=eMsgs.length ? '\n' : ''}${eMsgs.join('\n')}`, this.t)
+//        const eMsgs = this.__eCheckMsg(type, msg, err)
+//        if (eMsg) { return this._consoleFail('テストコードは最後に真偽値を返してください。', this.t) }
+//        if (!(err instanceof type)) { }
+//        if ('boolean'!==typeof bool) { return this._consoleFail('テストコードは最後に真偽値を返してください。', this.t) }
+//        if (isFalseSuccess ? bool : !bool) { return this._consoleFail(this.__failMsg(isFalseSuccess), this.t) }
+    }
+    /*
+    __eCheckMsg(type, msg, err) {
+        if (msg===err.message) { }
+        [this.__eCheckTypeMsg(type, err), this.__eCheckMsgMsg(msg, err)].join('\n')
+
         if (!(err instanceof type)) { }
-        if ('boolean'!==typeof bool) { return this._consoleFail('テストコードは最後に真偽値を返してください。', this.t) }
-        if (isFalseSuccess ? bool : !bool) { return this._consoleFail(this.__failMsg(isFalseSuccess), this.t) }
+    }
+    */
+    __eCheckTypeMsg(type, err) {
+        // 期待値typeがErrorかそのサブクラス（子孫）であることも確認したかったが不可能
+        //if (this.__isGenealogy(type, Error)) { return `型が不正です。期待する型はErrorかそれを継承した型であるべきです。` }
+        if (err instanceof type) { return '' }
+        return `型が違います。\n期待値: ${type}\n実際値: ${err.constructor.name}`
+    }
+    //Extended
+    __isGenealogy(a, e) { // aがeの系譜（同一または子孫クラス）であれば真を返す
+        console.log(a, e)
+        if (a instanceof e || a.constructor.name === e.constructor.name) { return true }
+        if (a.prototype) { return this.__isGenealogy(a.prototype, e) }
+        return false
+    }
+    /*
+    __isDescendantsClas(a, e) { // aがeの子孫クラスであれば真を返す
+        if (a instanceof e) { return true }
+        if (a.prototype) { return __isDescendantsClas(a.prototype, e) }
+        else { return }
+    }
+    */
+    __eCheckMsgMsg(msg, err) {
+        if (msg instanceof RegExp) {
+            if (msg.test(msg)) { return '' }
+            return `メッセージが違います。\n期待値: ${msg}\n実際値: ${err.message}`
+        }
+        if ('string'===typeof msg || msg instanceof String) {
+            if (msg===err.message) { return '' }
+            return `メッセージが違います。\n期待値: ${msg}\n実際値: ${err.message}`
+        }
+        throw new AssertError(`メッセージの型は文字列Stringか正規表現RegExpのいずれかのみ有効です。`)
     }
     __errorMsg(isFalseSuccess) {
 //        const j = ['真','偽']
@@ -236,6 +302,18 @@ class Assertion {
 }
 const t = new TestTarget()
 const a = new Assertion()
+//a.e(true)
+//a.e(false)
+//a.e(()=>true) // 引数不足です。引数は次の3つ必要です:
+//a.e(1, 2, 3) // 
+a.e(1, '', ()=>{}) // 
+a.e(Error, 2, ()=>{}) // 
+a.e(Error, '', 3) // 
+a.e(1, 2, ()=>{}) // 
+a.e(1, '', 3) // 
+a.e(Error, 2, 3) // 
+a.e(Error, '', ()=>{}) // 
+
 /*
 a.t(async()=>await t.getTrueAsync())
 a.t(async()=>await t.getFalseAsync())
