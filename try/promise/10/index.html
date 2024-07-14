@@ -1,0 +1,210 @@
+<script src="assertion.js"></script>
+<script>
+window.addEventListener('DOMContentLoaded', async(e)=>{
+class TestTarget {
+    getTrue() { return true }
+    getFalse() { return false }
+    throwError() { throw new Error('例外を投げます。') }
+    async getTrueAsync() { return new Promise((resolve)=>resolve(true)) }
+    async getFalseAsync() { return new Promise((resolve)=>resolve(false)) }
+    async throwErrorAsync() { return new Promise((resolve)=>resolve(new Error('例外を投げます。'))) }
+    isAge(age) { return Number.isInteger(age) && 0<=age && age<=100 }
+    async isAgeAsync(age) { return new Promise((resolve, reject)=>{
+        if (Number.isInteger(age) && 0<=age && age<=100) {resolve(age)}
+        else{reject(new TypeError(`第一引数ageは年齢を表す0以上100以下の整数値であるべきです。`))}
+    }) }
+}
+const t = new TestTarget()
+//const a = new Assertion('無効な言語コード')
+//const a = new Assertion('en')
+const a = new Assertion()
+
+a.t(async()=>await t.getTrueAsync())
+a.t(async()=>await t.getFalseAsync())
+a.t(async()=>await t.throwErrorAsync())
+a.t(async()=>{await t.throwErrorAsync();return true;})
+a.t(async()=>{throw new Error();return true;})
+a.t(async()=>{throw new Error();return false;})
+a.t(()=>t.getTrue())
+a.t(()=>t.getFalse())
+a.t(()=>t.throwError())
+a.t(()=>null)
+a.t(t.getTrue())
+a.t(t.getFalse())
+//a.t(t.throwError()) // 例外が起きた時キャッチできない
+a.t(0)
+/*
+*/
+/*
+*/
+
+a.f(async()=>await t.getTrueAsync())
+a.f(async()=>await t.getFalseAsync())
+a.f(async()=>await t.throwErrorAsync())
+a.f(async()=>{throw new Error();return false;})
+a.f(async()=>{throw new Error();return true;})
+a.f(()=>t.getTrue())
+a.f(()=>t.getFalse())
+a.f(()=>t.throwError())
+a.f(()=>null)
+a.f(t.getTrue())
+a.f(t.getFalse())
+//a.f(t.throwError()) // 例外が起きた時キャッチできない
+a.f(0)
+
+console.log(Error.name)
+console.log(Error.constructor.name)
+console.log(new Error().name)
+a.e(true) // 引数不正です。
+a.e(false) // 引数不正です。
+a.e(()=>true) // 引数不正です。
+a.e(1, 2, 3) // 引数不正です。
+a.e(1, '', ()=>{}) // 引数不正です。
+a.e(Error, 2, ()=>{}) // 引数不正です。
+a.e(Error, '', 3) // 引数不正です。
+a.e(1, 2, ()=>{}) // 引数不正です。
+a.e(1, '', 3) // 引数不正です。
+a.e(Error, 2, 3) // 引数不正です。
+a.e(Error, '', ()=>{}) // 例外発生すべき所で例外発生せず正常終了しました。
+a.e(Error, '', ()=>{throw new Error})
+a.e(Error, '', ()=>{throw new TypeError}) // 
+a.e(Error, '', ()=>{throw new Error('')})
+a.e(Error, 'A', ()=>{throw new Error('A')})
+a.e(Error, 'A', ()=>{throw new Error('A')}) // テスト失敗: メッセージが違います。
+a.e(Error, 'A', ()=>{throw new Error('B')}) // テスト失敗: メッセージが違います。
+a.e(Error, '', ()=>{throw new TypeError}) // テスト失敗: 型が違います。
+a.e(TypeError, '', ()=>{throw new Error}) // テスト失敗: 型が違います。
+a.e(TypeError, '', ()=>{throw new TypeError})
+a.e(TypeError, 'A', ()=>{throw new TypeError('A')})
+a.e(TypeError, 'A', ()=>{throw new TypeError('B')}) // テスト失敗: メッセージが違います。
+a.e(Error, 'A', ()=>{throw new TypeError('B')}) // テスト失敗: 型が違います。...メッセージが違います。...
+
+console.log(a.count)
+/*
+*/
+/*
+*/
+
+/*
+a.t(true)
+a.t(()=>true)
+//a.t(t.getTrueAsync())
+a.t(await t.getTrueAsync())
+//a.t(async()=>await t.getTrueAsync())
+//a.t(()=>{async()=>await t.getTrueAsync()})
+//a.t(()=>{
+//    const res = await t.getTrueAsync() // SyntaxError: await is only valid in async functions and the top level bodies of modules
+//    return res
+//})
+a.t(async()=>{
+    const res = await t.getTrueAsync() // SyntaxError: await is only valid in async functions and the top level bodies of modules
+    return res
+})
+
+
+a.t(t.getTrue())
+//a.t(t.getTrueAsync())
+a.t(await t.getTrueAsync())
+//a.t(async()=>await t.getTrueAsync())
+
+//a.t(()=>await true)
+//a.t(async()=>await true)
+//a.t(false)
+//a.t(()=>false)
+//a.t(()=>await false)
+//a.t(async()=>await false)
+*/
+
+
+
+/*
+class Assertion {
+//    static t(v) { return  this._getActual(v,true) }
+//    static f(v) { return !this._getActual(v,true) }
+//    static t(v) { return  this._normal(v) }
+//    static f(v) { return !this._normal(v, true) }
+    static t(v) { const r=this._normal(v); if(!r){this._result('テスト失敗。真であるべき所が偽である。')}; return  r; }
+    static f(v) { const r=this._normal(v); console.log(v,r);if( r){this._result('テスト失敗。偽であるべき所が真である。')}; return !r; }
+//    static f(v) { const r=this._normal(v,true); if(!r){this._result('テスト失敗。偽であるべき所が真である。')}; return r; }
+    static e(type, msg, fn) {
+        try {
+            this._getActual(fn)
+//            throw new Error(`例外発生すべき所で例外発生せず正常終了した。`, err)
+        }
+        catch (err) {
+            const cslMsg = Assertion._makeErrorMessage(type, msg, err)
+            if (cslMsg) { console.error(cslMsg, err); return false; }
+            return true
+        }
+    }
+
+//    static _normal(v, isFalseSuccess) { // 正常系（例外発生しない）
+//        try { return this._getActual(v, true) }
+//        catch (err) { throw new Error(`正常終了すべき所で例外発生した。`, err) }
+//    }
+    static _normal(v, isFalseSuccess) { // 正常系（例外発生しない）
+//        try { return this._getActual(v, true) }
+        try { const a=this._getActual(v, true); return isFalseSuccess ? !a : a }
+        catch (err) { throw new Error(`正常終了すべき所で例外発生した。`, err) }
+    }
+    static _getActual(v, acceptBool) {
+        switch (typeof v) {
+            case 'function': return v()
+            case 'boolean': {if(acceptBool){return v}else{throw new Error(`不正な引数値です。関数のみ有効です。`)}}//return acceptBool ? v : 
+            default: throw new Error(`不正な引数値です。関数か真偽値のみ有効です。`)
+        }
+    }
+    static _resolvePromiseNormal(v) {
+        if (v instanceof Promise) {
+//            v.resolve(target)
+            try { return v.resolve() }
+            catch (err) { this._fail('テスト失敗。プロミスにて真偽値を返すべき所で例外発生した。', this._resolvePromiseNormal) }
+        }
+    }
+    static _resolvePromiseError(v) {
+        if (v instanceof Promise) {
+            v.then((res)=>res).catch(e=>)
+        }
+    }
+    //static _result(msg, caller) {
+    static _fail(msg, caller) {
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, caller ?? this._result);
+            console.error(msg + '\n', this.stack)
+        } else { console.error(msg) }
+
+    }
+ }
+const t = new TestTarget()
+Assertion.t(t.getTrue())
+Assertion.t(()=>t.getTrue())
+Assertion.t(async()=>await t.getTrueAsync())
+Assertion.f(t.getFalse())
+Assertion.f(()=>t.getFalse())
+Assertion.f(async()=>await t.getFalseAsync())
+Assertion.e(t.throwError())
+
+Assertion.t(t.getTrue())
+*/
+/*
+const testT = (...args)=>new Promise((resolve, reject)=>{
+    try {
+        const actual = resolve(...args)
+    } catch(err) {
+
+    }
+    if(Number.isInteger(age) && 0<=age && age<=100){resolve(age)}
+    else{reject(new TypeError(`第一引数ageは年齢を表す0以上100以下の整数値であるべきです。`))}
+})
+a.t(async(target)=await target.trueAsync())
+*/
+/*
+checkAge(0).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge(100).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge(-1).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge(101).then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+checkAge('A').then(age=>console.log(`年齢: ${age}`)).catch(e=>console.error(e))
+*/
+
+})
+</script>
