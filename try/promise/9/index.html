@@ -15,9 +15,11 @@ class TestTarget {
     }) }
 }
 const t = new TestTarget()
+//const a = new Assertion('無効な言語コード')
 //const a = new Assertion('en')
 const a = new Assertion()
 
+/*
 a.t(async()=>await t.getTrueAsync())
 //a.t(async()=>await t.getFalseAsync())
 //a.t(async()=>await t.throwErrorAsync())
@@ -29,10 +31,11 @@ a.t(()=>t.getTrue())
 a.t(t.getTrue())
 //a.t(t.getFalse())
 //a.t(t.throwError()) // 例外が起きた時キャッチできない
-/*
 //a.t(0)
 */
 /*
+*/
+
 a.f(async()=>await t.getTrueAsync())
 a.f(async()=>await t.getFalseAsync())
 a.f(async()=>await t.throwErrorAsync())
@@ -40,14 +43,13 @@ a.f(async()=>{throw new Error();return true;})
 a.f(()=>t.getTrue())
 a.f(()=>t.getFalse())
 a.f(()=>t.throwError())
+a.f(()=>null)
 a.f(t.getTrue())
 a.f(t.getFalse())
 a.f(t.throwError()) // 例外が起きた時キャッチできないが、それはどこでも同じ
 a.f(0)
-*/
+
 /*
-
-
 console.log(Error.name)
 console.log(Error.constructor.name)
 console.log(new Error().name)
@@ -74,6 +76,8 @@ a.e(TypeError, '', ()=>{throw new TypeError})
 a.e(TypeError, 'A', ()=>{throw new TypeError('A')})
 a.e(TypeError, 'A', ()=>{throw new TypeError('B')}) // テスト失敗: メッセージが違います。
 a.e(Error, 'A', ()=>{throw new TypeError('B')}) // テスト失敗: 型が違います。...メッセージが違います。...
+*/
+/*
 */
 
 /*

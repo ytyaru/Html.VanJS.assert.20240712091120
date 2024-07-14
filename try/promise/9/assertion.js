@@ -1,10 +1,6 @@
 (function(){
 class Message {
     constructor(lang) {
-        this._lang = lang || (window.navigator.languages && window.navigator.languages[0]) ||
-            window.navigator.language ||
-            window.navigator.userLanguage ||
-            window.navigator.browserLanguage || 'en';
         this._common = {
             ja: {'true':'真','false':'偽'},
             en: {'true':'true','false':'false'},
@@ -24,7 +20,7 @@ class Message {
                 },
                 exception: {
                     augument:{
-                        summary:'テスト例外。引数不正です。\n',
+                        summary:(num)=>`テスト例外。引数不正です。${2<=num ? '\n' : ''}`,
                         triple:`引数は次の3つ必要です:\n1. 期待する例外型\n2. 期待する例外メッセージ(String/RegExp)\n3. 例外発生する無名関数`,
                         first:`第一引数は期待する例外型でありErrorかそれを継承した型であるべきです。`,
                         second:`第二引数は期待する例外メッセージを示す文字列型Stringか正規表現RegExp型であるべきです。`,
@@ -51,7 +47,7 @@ class Message {
                 },
                 exception: {
                     augument:{
-                        summary:'Test exception. Invalid argument.\n',
+                        summary:(num)=>`Test exception. Invalid argument.${2<=num ? '\n' : ''}`,
                         triple:`The following three arguments are required:\n1. Expected exception type\n2. Expected exception message (String/RegExp)\n3. Anonymous function that raises the exception.`,
                         first:`The first argument is the expected exception type, which should be Error or a type that inherits from it.`,
                         second:`The second argument should be a string type String or regular expression RegExp type indicating the expected exception message.`,
@@ -66,9 +62,27 @@ class Message {
                 },
             }
         }
+        this.#initLang(lang)
+        //this._lang = this.#validLang
     }
     get msg() { return this._message[(this._message.hasOwnProperty(this._lang) ? this._lang : 'ja')] }
     get cmn() { return this._common[(this._message.hasOwnProperty(this._lang) ? this._lang : 'ja')] }
+    //get #validLang() { return ([...Object.keys(this._common)].includes(this._lang) && [...Object.keys(this._message)].includes(this._lang)) ? this._lang : 'en' }
+    #initLang(lang) {
+        if (this.#hasDict(lang)) { this._lang = lang }
+        else {
+            const l = this.#getLang
+            if (this.#hasDict(l)) { this._lang = l }
+            else { this._lang = 'en' }
+        }
+    }
+    get #validLang() { return this.has(this._lang) ? this._lang : 'en' }
+    #hasDict(lang) { return ([...Object.keys(this._common)].includes(lang) && [...Object.keys(this._message)].includes(lang)) }
+    get #getLang() { return (window.navigator.languages && window.navigator.languages[0]) ||
+        window.navigator.language ||
+        window.navigator.userLanguage ||
+        window.navigator.browserLanguage;
+    }
 }
 class AssertError extends Error {
     constructor(msg, cause) {
@@ -117,15 +131,14 @@ class BaseAssertion {
     }
 }
 class NormalAssertion extends BaseAssertion {
-    constructor(M) { super(M) }
-    t(fn) { this._normal(fn) }
-    f(fn) { this._normal(fn, true) }
+    constructor(M) { super(M); this._caller=null; }
+    t(fn) { this._caller=this.t; this._normal(fn) }
+    f(fn) { this._caller=this.f; this._normal(fn, true) }
     _normal(fn, isFalseSuccess) {
         if (this.__isAsyncFunction(fn)) { this._nAsync(fn, isFalseSuccess) }
         else if (this.__isFn(fn)) { this._nFn(fn, isFalseSuccess) }
         else if (this.__isBool(fn)) { this._nB(fn, isFalseSuccess) }
-        else { this._consoleFail(this._M.msg.normal.exception.return, this.t) }
-        //else { this._consoleFail(`テスト例外。引数は真偽値かそれを返す関数であるべきです。`, this.t) }
+        else { this._consoleFail(this._M.msg.normal.exception.return, this._caller) } // テスト例外。引数は真偽値かそれを返す関数であるべきです。
     }
     _nAsync(fn, isFalseSuccess) {
         fn().then((bool)=>{
@@ -143,40 +156,49 @@ class NormalAssertion extends BaseAssertion {
         }
     }
     _nB(fn, isFalseSuccess) {
-        if (isFalseSuccess ? fn : !fn) { this._consoleFail(this.__failMsg(isFalseSuccess), this.t) }
+        if (isFalseSuccess ? fn : !fn) { this._consoleFail(this.__failMsg(isFalseSuccess), this._caller) }
     }
     __nCheck(bool, isFalseSuccess) {
-        if (!this.__isBool(bool)) { return this._consoleFail(this._M.msg.normal.exception.fnReturn, this.t) }
-        //if (!this.__isBool(bool)) { return this._consoleFail('テスト例外。テストコードは最後に真偽値を返してください。', this.t) }
-        if (isFalseSuccess ? bool : !bool) { return this._consoleFail(this.__failMsg(isFalseSuccess), this.t) }
+        if (!this.__isBool(bool)) { return this._consoleFail(this._M.msg.normal.exception.fnReturn, this._caller) }
+        // テスト例外。テストコードは最後に真偽値を返してください。
+        if (isFalseSuccess ? bool : !bool) { return this._consoleFail(this.__failMsg(isFalseSuccess), this._caller) }
     }
     __failMsg(isFalseSuccess) {
         const ea = [this._M.cmn.true, this._M.cmn.false]
         if (isFalseSuccess) { ea.reverse() }
-        return this._M.msg.normal.fail.value(...ea)
-//        const j = ['真','偽']
-//        if (isFalseSuccess) { j.reverse() }
-//        return `テスト失敗。${j[0]}であるべき所が${j[1]}です。`
+        return this._M.msg.normal.fail.value(...ea) // テスト失敗。${j[0]}であるべき所が${j[1]}です。
     }
-    __failMsgErr(isFalseSuccess, err) { this._consoleError(this._M.msg.normal.exception.throw(this._M.cmn[isFalseSuccess ? 'false' : 'true']), err, this.t) }
-    //__failMsgErr(isFalseSuccess, err) { this._consoleError(`テスト例外。${isFalseSuccess ? '偽' : '真'}であるべき所で例外発生しました。`, err, this.t) }
+    __failMsgErr(isFalseSuccess, err) { this._consoleError(this._M.msg.normal.exception.throw(this._M.cmn[isFalseSuccess ? 'false' : 'true']), err, this._caller) } // テスト例外。${isFalseSuccess ? '偽' : '真'}であるべき所で例外発生しました。
 }
 
 class ExceptionAssertion extends BaseAssertion {
     constructor(M) { super(M) }
-//class ErrorAssertion extends BaseAssertion {
     e(type, msg, fn) {
         if (this._ePrmErr(type, msg, fn)) return
         return this._error(type, msg, fn)
     }
     _ePrmErr(type, msg, fn) {
         let eMsgs = []
+        /*
         if ([type,msg,fn].some(v=>this.__isNullOrUndefined(v))) { eMsgs.push(`引数は次の3つ必要です:\n1. 期待する例外型\n2. 期待する例外メッセージ(String/RegExp)\n3. 例外発生する無名関数`) }
         if (!this.__isGenealogy(type, Error)) { eMsgs.push(`第一引数は期待する例外型でありErrorかそれを継承した型であるべきです。`) }
         if (!this.__isStr(msg)) { eMsgs.push(`第二引数は期待する例外メッセージを示す文字列型Stringか正規表現RegExp型であるべきです。`) }
         if (!(this.__isAsyncFunction(fn)) && 'function'!==typeof fn) {eMsgs.push(`第三引数は例外を発生させる関数であるべきです。`)}
         if (0<eMsgs.length) {
-            this._consoleFail('テスト例外。引数不正です。\n' + eMsgs.join('\n'), this.t)
+            this._consoleFail(this._M.msg.exception.augument.summary(eMsgs.length) + '\n' + eMsgs.join('\n'), this.t)
+            return true
+        }
+        */
+        // `引数は次の3つ必要です:\n1. 期待する例外型\n2. 期待する例外メッセージ(String/RegExp)\n3. 例外発生する無名関数`
+        if ([type,msg,fn].some(v=>this.__isNullOrUndefined(v))) { eMsgs.push(this._M.msg.exception.augument.triple) }
+        // `第一引数は期待する例外型でありErrorかそれを継承した型であるべきです。`
+        if (!this.__isGenealogy(type, Error)) { eMsgs.push(this._M.msg.exception.augument.first) }
+        // `第二引数は期待する例外メッセージを示す文字列型Stringか正規表現RegExp型であるべきです。`
+        if (!this.__isStr(msg)) { eMsgs.push(this._M.msg.exception.augument.second) }
+        // `第三引数は例外を発生させる関数であるべきです。`
+        if (!(this.__isAsyncFunction(fn)) && 'function'!==typeof fn) {eMsgs.push(this._M.msg.exception.augument.third)}
+        if (0<eMsgs.length) {
+            this._consoleFail(this._M.msg.exception.augument.summary(eMsgs.length) + eMsgs.join('\n'), this.e)
             return true
         }
     }
@@ -187,7 +209,7 @@ class ExceptionAssertion extends BaseAssertion {
     }
     _eAsync(type, msg, fn) {
         fn().then((bool)=>{
-            this._consoleFail(this.__errorMsg(), this.t)
+            this._consoleFail(this.__errorMsg(), this.e)
         }).catch(err=>{
             this.__eCheck(type, msg, err)
         })
@@ -195,35 +217,39 @@ class ExceptionAssertion extends BaseAssertion {
     _eFn(type, msg, fn) {
         try {
             const bool = fn()
-            this._consoleFail(this.__errorMsg(), this.t)
+            this._consoleFail(this.__errorMsg(), this.e)
 
         } catch(err) {
             this.__eCheck(type, msg, err)
         }
     }
     __eCheck(type, msg, err) {
-        console.log(type, msg, err)
         const eMsgs = [this.__eCheckTypeMsg(type, err), this.__eCheckMsgMsg(msg, err)].filter(v=>v)
-        if (0<eMsgs.length) this._consoleFail(`テスト失敗: ${2<=eMsgs.length ? '\n' : ''}${eMsgs.join('\n')}`, this.t)
+//        if (0<eMsgs.length) this._consoleFail(`テスト失敗: ${2<=eMsgs.length ? '\n' : ''}${eMsgs.join('\n')}`, this.t)
+        if (0<eMsgs.length) this._consoleFail(`${this._M.msg.exception.runtime.summary(eMsgs.length)}${eMsgs.join('\n')}`, this.e)
     }
     __eCheckTypeMsg(type, err) {
 //        if (err instanceof type) { return '' }
 //        return `型が違います。\n期待値: ${type}\n実際値: ${err.constructor.name}`
         if (err.constructor.name === type.name) { return '' }
-        return `型が違います。\n期待値: ${type.name}\n実際値: ${err.constructor.name}`
+//        return `型が違います。\n期待値: ${type.name}\n実際値: ${err.constructor.name}`
+        return this._M.msg.exception.runtime.type(type.name, err.constructor.name)
     }
     __eCheckMsgMsg(msg, err) {
         if (msg instanceof RegExp) {
             if (msg.test(msg)) { return '' }
-            return `メッセージが違います。\n期待値: ${msg}\n実際値: ${err.message}`
+//            return `メッセージが違います。\n期待値: ${msg}\n実際値: ${err.message}`
+            return this._M.msg.exception.runtime.msg(msg, err.message)
         }
         if ('string'===typeof msg || msg instanceof String) {
             if (msg===err.message) { return '' }
-            return `メッセージが違います。\n期待値: ${msg}\n実際値: ${err.message}`
+//            return `メッセージが違います。\n期待値: ${msg}\n実際値: ${err.message}`
+            return this._M.msg.exception.runtime.msg(msg, err.message)
         }
 //        throw new AssertError(`メッセージの型は文字列Stringか正規表現RegExpのいずれかのみ有効です。`)
     }
-    __errorMsg() { return `テスト失敗。例外発生すべき所で例外発生せず正常終了しました。` }
+    //__errorMsg() { return `テスト失敗。例外発生すべき所で例外発生せず正常終了しました。` }
+    __errorMsg() { return this._M.msg.exception.runtime.noneException }
 }
 class Assertion {
     constructor(lang) {
