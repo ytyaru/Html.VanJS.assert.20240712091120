@@ -19,7 +19,8 @@ const t = new TestTarget()
 //const a = new Assertion('en')
 const a = new Assertion()
 a.t(async()=>await t.getTrueAsync())
-
+a.t(async()=>await t.getFalseAsync())
+a.fin()
 /*
 a.t(async()=>await t.getTrueAsync())
 a.t(async()=>await t.getFalseAsync())
@@ -80,8 +81,8 @@ a.e(TypeError, 'A', ()=>{throw new TypeError('B')}) // テスト失敗: メッ�
 a.e(Error, 'A', ()=>{throw new TypeError('B')}) // テスト失敗: 型が違います。...メッセージが違います。...
 */
 
-console.log(a.count)
-setTimeout(()=>console.log(a.count), 2000)
+//console.log(a.count)
+//setTimeout(()=>console.log(a.count), 2000)
 
 /*
 */

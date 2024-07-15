@@ -90,7 +90,7 @@ class AssertError extends Error {
     }
 }
 class BaseAssertion {
-    constructor(M) { this._M = M }
+    constructor(M) { this._M = M; this._asyncs = []; }
     _consoleFail(msg, caller) {
         if (Error.captureStackTrace) {
             Error.captureStackTrace(this, caller ?? this._result);
@@ -129,16 +129,112 @@ class BaseAssertion {
     }
 }
 class NormalAssertion extends BaseAssertion {
-    constructor(M) { super(M); this._caller=null; this._count={exception:0, fail:0, success:0}; }
+    //constructor(M) { super(M); this._caller=null; this._count={exception:0, fail:0, success:0}; }
+    constructor(M,C) { super(M); this._caller=null; this._count=C; }
     t(fn) { this._caller=this.t; this._normal(fn) }
     f(fn) { this._caller=this.f; this._normal(fn, true) }
     get count() { return this._count }
     _normal(fn, isFalseSuccess) {
-        if (this.__isAsyncFunction(fn)) { this._nAsync(fn, isFalseSuccess) }
+        if (this.__isAsyncFunction(fn)) { this._count.pending++; this._asyncs.push([fn, isFalseSuccess]) }
+//        if (this.__isAsyncFunction(fn)) { this._nAsync(fn, isFalseSuccess) }
         else if (this.__isFn(fn)) { this._nFn(fn, isFalseSuccess) }
         else if (this.__isBool(fn)) { this._nB(fn, isFalseSuccess) }
         else { this._consoleFail(this._M.msg.normal.exception.return, this._caller) } // テスト例外。引数は真偽値かそれを返す関数であるべきです。
     }
+    _getAsyncPromises() {
+        const promises = []
+        for (let a of this._asyncs) {
+            const [fn, isFalseSuccess] = a
+            promises.push(new Promise((resolve,reject)=>{
+                fn().then((bool)=>{
+                //fn().then((bool)=>{
+                    console.log(bool, isFalseSuccess)
+                    this.__nCheck(bool, isFalseSuccess)
+                    resolve(isFalseSuccess===bool) // テスト成功：真、失敗：偽
+                }).catch(err=>{
+                    this.__exceptMsg(isFalseSuccess, err)
+                    reject(err) // テスト例外
+                })
+            }))
+            /*
+            promises.push(new Promise((resolve,reject)=>{
+                console.log(fn, isFalseSuccess)
+                try {
+                    const bool = fn()
+                    this.__nCheck(bool, isFalseSuccess)
+                    resolve(isFalseSuccess===bool) // テスト成功：真、失敗：偽
+                } catch(err) {
+                    this.__exceptMsg(isFalseSuccess, err)
+                    reject(err)
+                }
+            }))
+            */
+        }
+        //console.log(promises)
+        return promises
+    }
+
+    /*
+    _getAsyncPromises() {
+        const promises = []
+        for (let a of this._asyncs) {
+            const [fn, isFalseSuccess] = a
+            promises.push(new Promise((resolve,reject)=>{
+                console.log(fn, isFalseSuccess)
+                try {
+                    const bool = fn()
+                    this.__nCheck(bool, isFalseSuccess)
+                    resolve(isFalseSuccess===bool) // テスト成功：真、失敗：偽
+                } catch(err) {
+                    this.__exceptMsg(isFalseSuccess, err)
+                    reject(err)
+                }
+            }))
+        }
+        console.log(promises)
+        return promises
+    }
+    */
+    /*
+    _runAsyncs() {
+        const promises = []
+        for (let a of this._async) {
+            const [fn, isFalseSuccess] = a
+            promises.push(new Promise(resolve=>{
+                this._nAsync(fn, isFalseSuccess)
+                resolve()
+            })
+        }
+        return promises
+    }
+    new Promise((resolve, reject)=>{
+        try {
+            const bool = fn()
+            this.__nCheck(bool, isFalseSuccess)
+        } catch(err) {
+            this.__exceptMsg(isFalseSuccess, err)
+        }
+        resolve()
+    })
+    */
+//        Promise.all(...this._asyncs)
+//        .then((bool)=>this.__nCheck(bool, isFalseSuccess))
+//        .catch(err=>this.__exceptMsg(isFalseSuccess, err))
+    /*
+    _runAsyncs() { return Promise.all(...this._asyncs)
+        .then((bool)=>this.__nCheck(bool, isFalseSuccess))
+        .catch(err=>this.__exceptMsg(isFalseSuccess, err))
+    }
+    */
+    /*
+    _runAsyncs() { return new Promise((resolve)=>{
+        fn().then((bool)=>{
+            this.__nCheck(bool, isFalseSuccess)
+        }).catch(err=>{
+            this.__exceptMsg(isFalseSuccess, err)
+        })
+    }) }
+    */
     _nAsync(fn, isFalseSuccess) {
         fn().then((bool)=>{
             this.__nCheck(bool, isFalseSuccess)
@@ -158,10 +254,12 @@ class NormalAssertion extends BaseAssertion {
         if (isFalseSuccess ? fn : !fn) { this._consoleFail(this.__failMsg(isFalseSuccess), this._caller) }
     }
     __nCheck(bool, isFalseSuccess) {
+        console.log(bool, isFalseSuccess)
         if (!this.__isBool(bool)) { this._count.fail++; return this._consoleFail(this._M.msg.normal.exception.fnReturn, this._caller) }
         // テスト例外。テストコードは最後に真偽値を返してください。
         if (isFalseSuccess ? bool : !bool) { this._count.exception++; return this._consoleFail(this.__failMsg(isFalseSuccess), this._caller) }
         this._count.success++
+        return true
     }
     __failMsg(isFalseSuccess) {
         const ea = [this._M.cmn.true, this._M.cmn.false]
@@ -173,7 +271,8 @@ class NormalAssertion extends BaseAssertion {
 }
 
 class ExceptionAssertion extends BaseAssertion {
-    constructor(M) { super(M); this._count={exception:0, fail:0, success:0}; }
+    //constructor(M) { super(M); this._count={exception:0, fail:0, success:0}; }
+    constructor(M,C) { super(M); this._count=C; }
     e(type, msg, fn) {
         if (this._ePrmErr(type, msg, fn)) return
         return this._error(type, msg, fn)
@@ -195,9 +294,57 @@ class ExceptionAssertion extends BaseAssertion {
         }
     }
     _error(type, msg, fn) {
-        if (this.__isAsyncFunction(fn)) { this._eAsync(type, msg, fn) }
+        if (this.__isAsyncFunction(fn)) { this._count.pending++; this._asyncs.push([type, msg, fn]); }
+        //if (this.__isAsyncFunction(fn)) { this._eAsync(type, msg, fn) }
         else if (this.__isFn(fn)) { this._eFn(type, msg, fn) }
     }
+    /*
+    _getAsyncPromises() {
+        const promises = []
+        for (let a of this._asyncs) {
+            const [type, msg, fn] = a
+            promises.push(new Promise((resolve,reject)=>{
+                try {
+                    const bool = fn()
+                    this._consoleFail(this.__errorMsg(), this.e)
+                    resolve()
+                } catch(err) {
+                    this.__eCheck(type, msg, err)
+                    reject(err)
+                }
+            }))
+        }
+        console.log(promises)
+        return promises
+    }
+    */
+    _getAsyncPromises() {
+        const promises = []
+        for (let a of this._asyncs) {
+            const [type, msg, fn] = a
+            promises.push(new Promise((resolve,reject)=>{
+                fn().then((bool)=>{
+                    this._consoleFail(this.__errorMsg(), this.e)
+                    reject(new AssertionError(this.__errorMsg()))
+                }).catch(err=>{
+                    resolve(this.__eCheck(type, msg, err))
+                })
+                /*
+                try {
+                    const bool = fn()
+                    this._consoleFail(this.__errorMsg(), this.e)
+                    resolve()
+                } catch(err) {
+                    this.__eCheck(type, msg, err)
+                    reject(err)
+                }
+                */
+            }))
+        }
+        //console.log(promises)
+        return promises
+    }
+
     _eAsync(type, msg, fn) {
         fn().then((bool)=>{
             this._consoleFail(this.__errorMsg(), this.e)
@@ -218,7 +365,8 @@ class ExceptionAssertion extends BaseAssertion {
         if (0<eMsgs.length) { // テスト失敗: ...
             this._consoleFail(`${this._M.msg.exception.runtime.summary(eMsgs.length)}${eMsgs.join('\n')}`, this.e)
             this._count.fail++
-        } else { this._count.success++ }
+            return false
+        } else { this._count.success++; return true; }
     }
     __eCheckTypeMsg(type, err) {
 //        if (err instanceof type) { return '' }
@@ -243,22 +391,59 @@ class ExceptionAssertion extends BaseAssertion {
 }
 class Assertion {
     constructor(lang) {
-        this._count = {exception:0, fail:0, success:0}
+        this._count = {pending:0, exception:0, fail:0, success:0}
         this._M = new Message(lang)
-        this._normal = new NormalAssertion(this._M)
-        this._except = new ExceptionAssertion(this._M)
+        this._normal = new NormalAssertion(this._M, this._count)
+        this._except = new ExceptionAssertion(this._M, this._count)
     }
     t(fn) { this._normal.t(fn) }
     f(fn) { this._normal.f(fn) }
     e(type, msg, fn) { this._except.e(type, msg, fn) }
+    /*
     get count() {
-        const c = {exception:0, fail:0, success:0}
+        const c = {pending:0, exception:0, fail:0, success:0}
         for (let a of ['normal','except']) {
+            console.log()
             for (let k of Object.keys(this[`_${a}`].count)) {
                 c[k] += this[`_${a}`].count[k]
             }
         }
         return c
+    }
+    */
+    get count() { return this._count }
+    fin(onFinishedAsync, onFinishedSync) {
+        //if ('function'===typeof onFinished) { onFinishedSync(this.count) } // 同期テスト完了後実行
+        this._runOnFinished(onFinishedSync, '同期テスト結果: ')
+        if (0 < this.count.pending) { // 非同期テスト実行＆完了後実行
+            //console.log('fin')
+//            console.log(this._normal._getAsyncPromises())
+//            console.log(this._except._getAsyncPromises())
+            Promise.all([
+                ...this._normal._getAsyncPromises(),
+                ...this._except._getAsyncPromises(),],
+//            Promise.all(
+//                ...this._normal._getAsyncPromises(), 
+//                ...this._except._getAsyncPromises(),
+            ).then(()=>{
+                this._count.pending = 0
+                this._runOnFinished(onFinishedAsync, '非同期テスト結果: ')
+//                if ('function'===typeof onFinished) {
+//                    onFinishedAsync(this.count)
+//                }
+            }).catch(err=>this._normal._consoleError(`非同期テストで例外発生しました。`, err, this.fin))
+        }
+    }
+    _runOnFinished(onFinished, msg) {
+        const fn = 'function'===typeof onFinished ? onFinished : (count)=>console.log(msg, count)
+        fn(this.count)
+    }
+    _runOnFinishedSync(onFinished) { // 同期テスト完了後実行
+        const fn = 'function'===typeof onFinished ? onFinished : (count)=>console.log(count)
+        fn(this.count)
+    }
+    _runOnFinishedAsync(onFinished) {
+        console.log(count)
     }
 }
 window.Assertion = Assertion
