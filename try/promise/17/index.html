@@ -27,10 +27,10 @@ const t = new TestTarget()
 //const a = new Assertion('en')
 const a = new Assertion()
 
-/*
 a.t(async()=>await t.getTrueAsync())
 a.t(async()=>await t.getFalseAsync()) // 非同期テストで例外発生しました。\nAssertError: テスト失敗。真であるべき所が偽です。
 a.t(async()=>{await t.throwErrorAsync()}) // 非同期テストで例外発生しました。\nAssertError: テスト例外。真であるべき所で例外発生しました。
+/*
 a.t(()=>true)
 a.t(()=>false) // テスト失敗。真であるべき所が偽です。
 a.t(()=>{throw new Error}) // テスト例外。真であるべき所で例外発生しました。
@@ -48,9 +48,7 @@ a.f(()=>{throw new Error}) // テスト例外。真であるべき所で例外�
 a.f(()=>{throw t.throwError()}) // テスト例外。真であるべき所で例外発生しました。
 a.f(true)
 a.f(false) // テスト失敗。真であるべき所が偽です。
-*/
 
-/*
 a.e(TestTargetError, '例外を投げます。', async()=>{}) // テスト失敗。例外発生すべき所で例外発生せず正常終了しました。
 a.e(TestTargetError, '例外を投げます。', async()=>await t.throwErrorAsync())
 a.e(Error, '例外を投げます。', async()=>await t.throwErrorAsync()) // テスト失敗: 型が違います。
@@ -61,8 +59,10 @@ a.e(TestTargetError, '例外を投げます。', ()=>t.throwError())
 a.e(Error, '例外を投げます。', ()=>t.throwError()) // テスト失敗: 型が違います。
 a.e(TestTargetError, '間違ったメッセージ', ()=>t.throwError())
 a.e(Error, '間違ったメッセージ', ()=>t.throwError()) // 型が違います。\nメッセージが違います。
-*/
 a.e(TestTargetError, '間違ったメッセージ', ()=>t.throwErrorAsync()) // テスト例外。テストコードは例外発生させてください。Promiseを返すのは間違いです。キャッチされない例外：Uncaught (in promise) TestTargetError: 例外を投げます。
+*/
+/*
+*/
 /*
 */
 /*
