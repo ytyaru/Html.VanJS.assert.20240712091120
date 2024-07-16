@@ -180,6 +180,7 @@ class BaseAssertion {
 //            console.log(this._M.stt[status])
 //            console.log(this._M.stt[status].color.b)
 //            console.log(`%c${MSG}`, `background-color:#99CCFF;color:#0000AA;`)
+            //console.log(`%c${msg}\n${stacks.join('\n')}`, `background-color:${this._M.stt[status].color.b};color:${this._M.stt[status].color.f};`)
             console.log(`%c${msg}\n${stacks.join('\n')}`, `background-color:${this._M.stt[status].color.b};color:${this._M.stt[status].color.f};`)
         } else {
             console.log(`${msg}\n${stacks.join('\n')}`)
