@@ -1,0 +1,66 @@
+<script src="assertion.js"></script>
+<script>
+window.addEventListener('DOMContentLoaded', async(e)=>{
+class TestTargetError extends Error {
+    constructor(msg, cause) {
+        super(msg, {cause,cause});
+        this.name = 'TestTargetError';
+        this.cause = cause;
+    }
+}
+class TestTarget {
+    getTrue() { return true }
+    getFalse() { return false }
+    throwError() { throw new TestTargetError('例外を投げます。') }
+    async getTrueAsync() { return new Promise((resolve)=>resolve(true)) }
+    async getFalseAsync() { return new Promise((resolve)=>resolve(false)) }
+    //async throwErrorAsync() { return new Promise((resolve)=>resolve(new Error('例外を投げます。'))) }
+    async throwErrorAsync() { return new Promise((resolve,reject)=>reject(new TestTargetError('例外を投げます。'))) }
+    isAge(age) { return Number.isInteger(age) && 0<=age && age<=100 }
+    async isAgeAsync(age) { return new Promise((resolve, reject)=>{
+        if (Number.isInteger(age) && 0<=age && age<=100) {resolve(age)}
+        else{reject(new TypeError(`第一引数ageは年齢を表す0以上100以下の整数値であるべきです。`))}
+    }) }
+}
+const t = new TestTarget()
+//const a = new Assertion('無効な言語コード')
+//const a = new Assertion('en')
+const a = new Assertion()
+
+a.t(async()=>await t.getTrueAsync())
+a.t(async()=>await t.getFalseAsync()) // 非同期テストで例外発生しました。\nAssertError: テスト失敗。真であるべき所が偽です。
+a.t(async()=>{await t.throwErrorAsync()}) // 非同期テストで例外発生しました。\nAssertError: テスト例外。真であるべき所で例外発生しました。
+a.t(()=>true)
+a.t(()=>false) // テスト失敗。真であるべき所が偽です。
+a.t(()=>{throw new Error}) // テスト例外。真であるべき所で例外発生しました。
+a.t(()=>{throw t.throwError()}) // テスト例外。真であるべき所で例外発生しました。
+a.t(true)
+a.t(false) // テスト失敗。真であるべき所が偽です。
+//a.t(t.throwError()) // ここで中断されてしまう。できれば引数は関数にすべき。
+
+a.f(async()=>await t.getTrueAsync())
+a.f(async()=>await t.getFalseAsync()) // 非同期テストで例外発生しました。\nAssertError: テスト失敗。真であるべき所が偽です。
+a.f(async()=>{await t.throwErrorAsync()}) // 非同期テストで例外発生しました。\nAssertError: テスト例外。真であるべき所で例外発生しました。
+a.f(()=>true)
+a.f(()=>false) // テスト失敗。真であるべき所が偽です。
+a.f(()=>{throw new Error}) // テスト例外。真であるべき所で例外発生しました。
+a.f(()=>{throw t.throwError()}) // テスト例外。真であるべき所で例外発生しました。
+a.f(true)
+a.f(false) // テスト失敗。真であるべき所が偽です。
+
+a.e(TestTargetError, '例外を投げます。', async()=>{}) // テスト失敗。例外発生すべき所で例外発生せず正常終了しました。
+a.e(TestTargetError, '例外を投げます。', async()=>await t.throwErrorAsync())
+a.e(Error, '例外を投げます。', async()=>await t.throwErrorAsync()) // テスト失敗: 型が違います。
+a.e(TestTargetError, '間違ったメッセージ', async()=>await t.throwErrorAsync()) // テスト失敗: メッセージが違います。
+a.e(Error, '間違ったメッセージ', async()=>await t.throwErrorAsync()) // 型が違います。\nメッセージが違います。
+a.e(TestTargetError, '例外を投げます。', ()=>{}) // テスト失敗。例外発生すべき所で例外発生せず正常終了しました。
+a.e(TestTargetError, '例外を投げます。', ()=>t.throwError())
+a.e(Error, '例外を投げます。', ()=>t.throwError()) // テスト失敗: 型が違います。
+a.e(TestTargetError, '間違ったメッセージ', ()=>t.throwError())
+a.e(Error, '間違ったメッセージ', ()=>t.throwError()) // 型が違います。\nメッセージが違います。
+//a.e(TestTargetError, '間違ったメッセージ', ()=>t.throwErrorAsync()) // キャッチされない例外：Uncaught (in promise) TestTargetError: 例外を投げます。
+
+a.fin()
+
+})
+</script>
