@@ -166,7 +166,6 @@ class AssertError extends Error {
 class BaseAssertion {
     constructor(M) { this._M = M; this._asyncs = []; this._asyncDict = {};}
     _console(status, msg, err, caller) { // status:pending/exception/fail/success、[s,m],[s,m,c],[s,m,e],[s,m,e,c]
-//        console.log(status, msg, err, caller)
         const stacks = (undefined===err || this.__isFn(err)) ? this._captureStacks(this._console) : this._getErrorStacks(err)
         if (['exception','fail'].some(s=>s===status)) {
             console.log(`%c${msg}\n${stacks.join('\n')}`, `background-color:${this._M.stt[status].color.b};color:${this._M.stt[status].color.f};`)
@@ -174,29 +173,12 @@ class BaseAssertion {
             console.log(`${msg}\n${stacks.join('\n')}`)
         }
     }
-    /*
-    _consoleFail(msg, caller, isExceptionColor) {
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, caller ?? this._result);
-            const s = this.stack.split('\n')
-            s.shift() // 先頭にある Error 削除
-            console.error(msg + '\n', this.__delStacks(s).join('\n'))
-        } else { console.error(msg) }
-    }
-    _consoleException(msg, err, caller) {
-        if (Error.captureStackTrace) {
-            //console.error(msg, '\n', this._getErrorStacks(err).join('\n'))
-            //console.error(`%c ${msg}\n${this._getErrorStacks(err).join('\n')}`, `background-color:#99CCFF;color:#0000AA;`)
-            console.log(`%c ${msg}\n${this._getErrorStacks(err).join('\n')}`, `background-color:#99CCFF;color:#0000AA;`)
-        } else { console.error(msg) }
-    }
-    */
     _captureStacks(caller) {
         if (Error.captureStackTrace) {
             Error.captureStackTrace(this, caller ?? this._captureStacks);
             const s = this.stack.split('\n')
             s.shift() // 先頭にある Error 削除
-            return s
+            return this.__delStacks(s)
         } else { return [] } 
     }
     _getErrorStacks(err) {
@@ -248,7 +230,6 @@ class BoolAssertion extends BaseAssertion {
     }
     get count() { return this._count }
     assert(fn) {
-        ;console.log('ass:', this.__isFn(fn), this.__isBool(fn))
         if (this.__isAsyncFunction(fn)) { this._count.pending++; this._asyncs.push([fn, this.__getCaller()]); }
         else if (this.__isFn(fn)) { this._nFn(fn) }
         else if (this.__isBool(fn)) { this._nB(fn) }
