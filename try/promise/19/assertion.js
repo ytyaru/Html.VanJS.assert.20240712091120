@@ -248,10 +248,11 @@ class BoolAssertion extends BaseAssertion {
     }
     get count() { return this._count }
     assert(fn) {
+        ;console.log('ass:', this.__isFn(fn), this.__isBool(fn))
         if (this.__isAsyncFunction(fn)) { this._count.pending++; this._asyncs.push([fn, this.__getCaller()]); }
         else if (this.__isFn(fn)) { this._nFn(fn) }
         else if (this.__isBool(fn)) { this._nB(fn) }
-        else { this._console('fail', this._M.msg.normal.exception.return, this._caller) } // テスト例外。引数は真偽値かそれを返す関数であるべきです。
+        else { this._count.exception++; this._console('fail', this._M.msg.normal.exception.return, this._caller) } // テスト例外。引数は真偽値かそれを返す関数であるべきです。
     }
     _getAsyncPromises() {
         const promises = []
@@ -286,6 +287,7 @@ class BoolAssertion extends BaseAssertion {
             this._count.fail++
             this._console('fail', this.__failMsg(), this._caller)
         }
+        this._count.success++
     }
     __nCheckAsync(resolve, reject, stack, bool) {
         if (!this.__isBool(bool)) {
@@ -308,6 +310,7 @@ class BoolAssertion extends BaseAssertion {
         return ''
     }
     __nCheck(bool) {
+        console.log('nCheck')
         // テスト例外。テストコードは最後に真偽値を返してください。
         if (!this.__isBool(bool)) {
             this._count.exception++
@@ -483,33 +486,11 @@ class Assertion {
                 this._T.update()
             })
         }
+        this._T.update()
     }
     _runOnFinished(onFinished, msg) {
         const fn = 'function'===typeof onFinished ? onFinished : (count)=>console.log(msg, count)
         fn(this.count)
-    }
-}
-/*
-class Assert {
-    constructor(options) { // options:{script:'*.js', module:'*.js'} 動的ロード import()
-        this._options = options
-    }
-    test(options, ...tests) { // options:{label:'', method:this.t/f/e, setup:()=>return t, tearDown:(t)=>t.close()}
-    }
-    _loadScript() {
-        const script = document.createElement('script');
-        script.onload = function () {
-            // ロード後何かしてほしいとき
-        };
-        script.src = something;
-        document.head.appendChild(script);
-    }
-    _runTest(options, fn) {
-
-    }
-}
-class AssertTest {
-    constructor(options) { // options:{label:'',method:a.t,setup:()=>t, tearDown:(t)=>t.close()}
     }
 }
 class AssertResultTable {
