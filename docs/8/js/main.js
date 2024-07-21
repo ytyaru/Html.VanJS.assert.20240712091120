@@ -79,7 +79,6 @@ window.addEventListener('DOMContentLoaded', async(event) => {
     */
 
     const bb = new BlackBox(a)
-    
     /*
     // 非同期
     bb.test({
@@ -144,6 +143,10 @@ window.addEventListener('DOMContentLoaded', async(event) => {
     })
     */
 
+
+
+
+
     class Human {
         constructor(name) { this._name = name }
         get name() { return this._name }
@@ -155,6 +158,7 @@ window.addEventListener('DOMContentLoaded', async(event) => {
         }) }
         say(msg) { return `${this.name}は「${say}」と言った。` }
     }
+    /*
     bb.test({ // method がないときはコンストラクタのテストになる
         class: Human,
         inouts:[
@@ -169,17 +173,30 @@ window.addEventListener('DOMContentLoaded', async(event) => {
         ],
     })
     delete window.Human
+    */
 
-    /*
     // TestError: options.methodはメソッド名を指定してください。ゲッター・セッター・プロパティには非対応です。
+    bb.test({
+        //class: Human,
+        class: new Human('山田'),
+        //method: 'name', // method でなくゲッターなのでエラー。メソッド以外のテストはAssertion.t/f/e()を使う。いずれ改善したい。
+        method: 'name', // getter
+        inouts:[
+            //[[], (r)=>r==='山田'],
+            [[], (r)=>{console.log(r); return r==='山田'}],
+        ],
+    })
     bb.test({
         class: Human,
         method: 'name', // method でなくゲッターなのでエラー。メソッド以外のテストはAssertion.t/f/e()を使う。いずれ改善したい。
         inouts:[
-            [[], (r)=>r==='山田'],
+            [['山田'], (r)=>{console.log(r); return r==='山田'}],
+            [['鈴木'], (r)=>{console.log(r); return r==='山田'}],
         ],
     })
-    */
+
+
+    /*
     bb.assertion.t(()=>{const N='山田'; const h=new Human(N); return h.name===N;})
 
 
@@ -259,6 +276,19 @@ window.addEventListener('DOMContentLoaded', async(event) => {
             [[],   (r)=> r],
         ],
     })
+    */
+
+
+
+
+
+
+
+
+
+
+
+
 
     /*
     bb.test({

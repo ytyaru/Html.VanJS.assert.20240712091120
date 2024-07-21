@@ -203,10 +203,9 @@ class BaseAssertion {
     __isBool(v) { return 'boolean'===typeof v }
     __isFn(v) { return 'function'===typeof v }
     __isStr(v) { return 'string'===typeof v || v instanceof String }
-    __isAFn(v) { return return this.__isAsyncFunction(v) }
-    __isAsyncFunction(v) { return v instanceof (async()=>{}).constructor }
-    __isErrorConstructor(v) { return Error.isPropertyOf(v) }
-    __isError(v) { return v instanceof Error }
+    __isAFn(v) { return v instanceof (async()=>{}).constructor }
+    __isErrCls(v) { return Error.isPropertyOf(v) }
+    __isErrIns(v) { return v instanceof Error }
     __isObj(v) { return 'Object'===v.constructor.name }
     __isRange(v, min, max) { return min <= v && v <= max }
     __isNullOrUndefined(v) {
@@ -243,7 +242,7 @@ class BoolAssertion extends BaseAssertion {
     }
     get count() { return this._count }
     assert(fn) {
-        if (this.__isAsyncFunction(fn)) { this._count.pending++; this._asyncs.push([fn, this.__getCaller()]); }
+        if (this.__isAFn(fn)) { this._count.pending++; this._asyncs.push([fn, this.__getCaller()]); }
         else if (this.__isFn(fn)) { this._nFn(fn) }
         else if (this.__isBool(fn)) { this._nB(fn) }
         else { this._count.exception++; this._console('fail', this._M.msg.normal.exception.return, this._caller) } // テスト例外。引数は真偽値かそれを返す関数であるべきです。
@@ -347,14 +346,14 @@ class ExceptionAssertion extends BaseAssertion {
         // `第二引数は期待する例外メッセージを示す文字列型Stringか正規表現RegExp型であるべきです。`
         if (!this.__isStr(msg)) { eMsgs.push(this._M.msg.exception.augument.second) }
         // `第三引数は例外を発生させる関数であるべきです。`
-        if (!(this.__isAsyncFunction(fn)) && 'function'!==typeof fn) {eMsgs.push(this._M.msg.exception.augument.third)}
+        if (!(this.__isAFn(fn)) && 'function'!==typeof fn) {eMsgs.push(this._M.msg.exception.augument.third)}
         if (0<eMsgs.length) {
             this._console('fail', this._M.msg.exception.augument.summary(eMsgs.length) + eMsgs.join('\n'), this.e)
             return true
         }
     }
     _error(type, msg, fn) {
-        if (this.__isAsyncFunction(fn)) { this._count.pending++; this._asyncs.push([type, msg, fn, this.__getCaller()]); }
+        if (this.__isAFn(fn)) { this._count.pending++; this._asyncs.push([type, msg, fn, this.__getCaller()]); }
         else if (this.__isFn(fn)) { this._eFn(type, msg, fn) }
     }
     _getAsyncPromises() {
@@ -420,12 +419,14 @@ class ExceptionAssertion extends BaseAssertion {
     __errorMsg() { return this._M.msg.exception.runtime.noneException }
 }
 class RoutingAssertion extends BaseAssertion {
-    constructor(M,C) {
+    constructor(M,C,t,e) {
         super(M)
         this._count = C
-        this._n = new BoolAssertion(M,C) // 正常系（a.t()）
-        this._e = new ExceptionAssertion(M,C) // 異常系（a.e()）
-        this._b = new BlackBox() // ブラックボックステスト
+        this._n = t // 正常系（a.t()）
+        this._e = e // 異常系（a.e()）
+//        this._n = new BoolAssertion(M,C) // 正常系（a.t()）
+//        this._e = new ExceptionAssertion(M,C) // 異常系（a.e()）
+//        this._b = new BlackBox() // ブラックボックステスト
     }
     a(...args) { return this.assert(...args) }
     assert(...args) {
@@ -433,7 +434,7 @@ class RoutingAssertion extends BaseAssertion {
             if (this.__isAsyncFn(args[0])) {this._count.pending++; this._asyncs.push([args[0], this.__getCaller()]);}
             else if (this.__isFn(args[0])) {this._n._nFn(args[0])}
             else if (this.__isBool(args[0])) {this._n._nB(args[0])}
-            else if (this.__isObj(args[0])) {this._b.test(args[0]) } // BlackBoxテスト
+//            else if (this.__isObj(args[0])) {this._b.test(args[0]) } // BlackBoxテスト
             else { this._count.exception++; this._console('fail', this._M.msg.normal.exception.return, this._caller) } // テスト例外。引数は真偽値かそれを返す関数であるべきです。
         } else if (2 <= args.length && args.length <= 3) { // 異常系
             // 期待するエラー
@@ -447,8 +448,8 @@ class RoutingAssertion extends BaseAssertion {
         throw new Error()  // テスト例外。テストの引数は正常系なら真偽値かそれを返す関数、異常系なら期待する例外オブジェクトとそれを発生させる関数であるべきです
     }
     _getErrorTypeMsg(args) {
-        if (this.__isErrorConstructor(args[0]) && this.__isStr(args[1])) { return [args[0], args[1]] }
-        else if (this.__isError(args[0])) { return [args[0].constructor, args[0].message] }
+        if (this.__isErrCls(args[0]) && this.__isStr(args[1])) { return [args[0], args[1]] }
+        else if (this.__isErrIns(args[0])) { return [args[0].constructor, args[0].message] }
         else {
             throw new Error(`テスト例外。異常系テストの引数は期待する例外オブジェクトとそれを発生させる関数であるべきです。
 a.assert(Error, 'msg', ()=>{throw new Error('msg')});
@@ -463,9 +464,11 @@ class Assertion {
         this._t = new TrueAssertion(this._M, this._count)
         this._f = new FalseAssertion(this._M, this._count)
         this._e = new ExceptionAssertion(this._M, this._count)
+        this._a = new RoutingAssertion(this._M, this._count, this._t, this._e)
         this._T = new AssertResultTable(this._M, this._count)
         this._T.addDom()
     }
+    a(...args) { this._a.assert(...args) } // t/e共用分岐
     t(fn) { this._t.assert(fn) }
     f(fn) { this._f.assert(fn) }
     e(type, msg, fn) { this._e.assert(type, msg, fn) }
@@ -501,10 +504,6 @@ class Assertion {
         fn(this.count)
     }
 }
-
-
-
-
 class AssertResultTable {
     constructor(M,C) {
         this._M = M
@@ -586,147 +585,5 @@ class AssertResultTable {
         return div
     }
 }
-
-/*
-[target, (m/g/s/d), (f), asserts]
-{
-  target /tar/t: Human/new Human('山田'), // 必須
-  method /met/m: 'someMethod',            // 任意（m,g,s,dは一つもないか一つだけのみ許容する。複数はダメ）
-  getter /get/g: 'someName',
-  setter /set/s: 'someName',
-  delete /del/d: 'someName',
-  finally/fin/f: (t)=>t.close(),          // 任意
-  asserts/ass/a: [                        // 必須
-    metArgs, assArgs
-  ]
-}
-testTarget: constructor/method/getter/setter/delete（この5パターンのうちどれか）
-*/
-class BlackBoxArgs {
-    check(...args) {
-        if (this.__isRange(args.length, 2, 4)) {
-            const l = args.length - 1
-            if (!this._isTarget(args[0])) { throw new Error(`引数が配列のとき最初の要素はtargetであるべきです。`) }
-            if (!this._isAsserts(args[l]) { throw new Error(`引数が配列のとき最後の要素はassertsであるべきです。`)}
-            if (2<=l) {
-                if ('Method,Getter,Setter,Delete'.split(',').some(n=>this.[`_is${n}`](args[1])) {}
-                else if (this._isFinally(args[1])) {}
-                if (3===l) {
-                    if ('Method,Getter,Setter,Delete'.split(',').some(n=>this.[`_is${n}`](args[2]))
-                    else if (this._isFinally(args[2])) {}
-                }
-            }
-        }
-        if (this.__isObj(args[0])) {
-
-        }
-    }
-    _isTarget(arg) {
-        if (this.__isClass(args)) { return true }
-        if (this.__isStr(args) && this.__isClass(window[args])) { return true }
-        return false
-    }
-    _isAsserts(arg) {
-        if (Array.isArray(arg) && 2===args.length) { return true }
-        return false
-    }
-    _hasMethod(args) {
-}
-
-class BlackBox {
-    constructor(assertion) {
-        this._a = assertion ?? new Assertion()
-    }
-    get assertion() { return this._a }
-    get defaultOptions() { return {class:{name:'',args:[]},method:undefined,assert:'t',inouts:[[], (r)=>r===true], tearDown:(t)=>{}} }
-    test(options) {
-        const OP = {...this.defaultOptions, ...options}
-        const target = this._getInstance(OP)
-        const [mthNm, isAsync] = this._validMethod(OP, target)
-        if (isAsync) { this._testAsync(OP, target, mthNm) }
-        else { this._testSync(OP, target, mthNm) }
-        OP.tearDown(target)
-    }
-    fin() { this._a.fin() }
-    _getInstance(options) {
-        const C = options.class
-        const [N,A] = [C.name, this._getArgs(options)]
-        const ins = this._getInsFnStr(C, A)
-        if (ins) { return ins }
-        else if (Array.isArray(C)) {
-            if (0===C.length) { throw new TestError(`options.class.nameはクラス名またはコンストラクタを指定してください。`) }
-            else if (1===C.length) { return this._getInsFnStr(C) }
-            else { return this._getInsFnStr(C[0], C.splice(1)) }
-        }
-        else {
-            const [N,A] = [C.name, this._getArgs(options)]
-            if (this._a._t.__isFn(N)) { return new N(...A) }
-            else if (this._a._t.__isStr(N)) { return Reflect.construct(window[N], A) }
-            else { throw new TestError(`options.class.nameはクラス名またはコンストラクタを指定してください。`) }
-        }
-    }
-    _getInsFnStr(C, args) {
-        console.log(C, args, window[C], window)
-        if (this._a._t.__isFn(C)) { return new C(...args) }
-        else if (this._a._t.__isStr(C)) { return Reflect.construct(window[C], args ?? []) }
-        return false
-    }
-    _getArgs(C) {
-        if (this._a._t.__isFn(C)) { return [] }
-        else if (this._a._t.__isStr(C)) { return [] }
-        else if (Array.isArray(C)) {
-            if (0 === C.length) { throw new TestError(`options.class.argsはクラス名またはコンストラクタを指定してください。`) }
-            else if (1 === C.length) { return [] }
-            else {
-                if ('function'!==typeof C[1] && !Array.isArray(C[1])) { throw new TestError(`options.class.argsはコンストラクタ引数を示す配列かそれを返す関数にしてください。`) }
-                return ('function'===typeof C[1]) ? C[1]() : C[1] } // 配列なら可変長引数。関数なら実行結果（配列）
-        }
-        else { // C:{name:'', args:[]}  args:[]/()=>
-            const A = C.args
-            if (!A) { return [] }
-            if (!this._a._t.__isFn(A) && !Array.isArray(A)) { throw new TestError(`options.class.argsはコンストラクタ引数を示す配列かそれを返す関数にしてください。`) }
-            return this._a._t.__isFn(A) ? A() : A
-        }
-    }
-    _validMethod(options, ins) {
-        if (!options.method) { return ['constructor', false] } // メソッドでなくコンストラクタのテストを行う
-        //if ('function'!==typeof ins[options.method]) { throw new TestError(`options.methodはメソッド・ゲッター・セッター名のいずれかを指定してください。`) }
-        if ('function'!==typeof ins[options.method]) { throw new TestError(`options.methodはメソッド名を指定してください。ゲッター・セッター・プロパティには非対応です。`) }
-        return [options.method, 'AsyncFunction,AsyncGeneratorFunction'.split(',').some(n=>n===(ins[options.method]).constructor.name)]
-    }
-    _testSync(options, target, mthNm) {
-        for (let io of options.inouts) {
-            const [args, expected] = io
-            this._a[options.assert](...this._testSyncAssArgs(options, target, mthNm, args, expected))
-        }
-    }
-    //_testSyncAssArgs(options, target, mthNm, args, expected) { return 'e'===options.assert ? [...expected, ()=>target[mthNm](...args)] : [()=>expected(target[mthNm](...args))] }
-    _testSyncAssArgs(options, target, mthNm, args, expected) { return 'e'===options.assert ? [...expected, ()=>this._runTestMethod(options, target, mthNm, args)] : [()=>expected(this._runTestMethod(options, target, mthNm, args))] }
-    _runTestMethod(options, target, mthNm, args) {
-        //if ('constructor'===mthNm) { return Reflect.construct(window[C], args ?? []) }
-        if ('constructor'===mthNm) { return Reflect.construct(target.constructor, args ?? []) }
-        else if ('getter'===mthNm) { return Reflect.get(target, mthNm) }
-        else if ('setter'===mthNm) { return Reflect.set(target, mthNm, args) }
-//        else if ('deleter'===mthNm) {}
-        else { return target[mthNm](...args) }
-    }
-    _testAsync(options, target, mthNm) {
-        for (let io of options.inouts) {
-            const [args, expected] = io
-            console.log(this._a[options.assert])
-            this._a[options.assert](
-                ...('e'===options.assert
-                ? [...expected, (async()=>await target[mthNm](...args))]
-                : [(async()=>expected(await target[mthNm](...args)))])
-//                : [(async()=>{
-//                    const r = await target[mthNm](...args)
-//                    console.log(r, expected(r))
-//                    return expected(r)
-//                })])
-            )
-        }
-    }
-}
 window.Assertion = Assertion
-window.BlackBox = BlackBox
 })()
