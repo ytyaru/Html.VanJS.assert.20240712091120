@@ -245,7 +245,6 @@ class BlackBox {
         return [options.method, 'AsyncFunction,AsyncGeneratorFunction'.split(',').some(n=>n===(ins[options.method]).constructor.name)]
     }
     _testSync(options, target, mthNm) {
-        // classがコンストラクタ（非インスタンス）でmethod:''で指定した名前が非method(getter/setter)なら、
         for (let io of options.inouts) {
             const [args, expected] = io
             this._a[options.assert](...this._testSyncAssArgs(options, target, mthNm, args, expected))
