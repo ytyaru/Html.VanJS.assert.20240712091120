@@ -142,6 +142,47 @@ window.addEventListener('DOMContentLoaded', async(event) => {
         ],
     })
     */
+
+    ;(function(){ // TypeError: (intermediate value) is not a function   セミコロンが先頭に必要……ウゼェ
+        class Human {
+            constructor(name) { this._name = name }
+            name() { return 'method' }     // 上書きされて参照できない！
+            get name() { return 'getter' } // 同名なら後に宣言したほうが有効
+        }
+        console.assert((new Human()).name==='getter')
+        a.e(TypeError, `(intermediate value).name is not a function`, ()=>(new Human()).name())
+    })();
+    ;(function(){
+        class Human {
+            constructor(name) { this._name = name }
+            get name() { return 'getter' } // 上書きされて参照できない！
+            name() { return 'method' }     // 同名なら後に宣言したほうが有効
+        }
+        console.assert((new Human()).name()==='method')
+        console.log((new Human()).name)
+    })();
+    ;(function(){
+        class Human { // ゲッターのみ
+            constructor(name) { this._name = name }
+            get name( ) { return this._name }
+        }
+    })();
+    ;(function(){
+        class Human { // セッターのみ
+            constructor(name) { this._name = name }
+            set name(v) { this._name = v }
+        }
+    })();
+    ;(function(){
+        class Human { // ゲッター・セッター両方ある
+            constructor(name) { this._name = name }
+            get name( ) { return this._name }
+            set name(v) { this._name = v }
+        }
+    })();
+
+
+
     class Human {
         constructor(name) { this._name = name }
         say(msg) { return `${this.name}は「${msg}」と言った。` }
