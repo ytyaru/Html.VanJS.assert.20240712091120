@@ -149,20 +149,21 @@ window.addEventListener('DOMContentLoaded', async(event) => {
 
     class Human {
         constructor(name) { this._name = name }
-        get name() { return this._name }
+        say(msg) { return `${this.name}は「${msg}」と言った。` }
+        get name( ) { return this._name }
+        set name(v) { this._name = v }
         isAge(age) { return Number.isInteger(age) && 0<=age && age<=100 }
         async isAgeAsync(age) { return new Promise((resolve, reject)=>{
             //if (Number.isInteger(age) && 0<=age && age<=100) {resolve(age)}
             if (Number.isInteger(age) && 0<=age && age<=100) {resolve(true)}
             else{reject(new TypeError(`第一引数ageは年齢を表す0以上100以下の整数値であるべきです。`))}
         }) }
-        say(msg) { return `${this.name}は「${say}」と言った。` }
     }
-    /*
     bb.test({ // method がないときはコンストラクタのテストになる
         class: Human,
         inouts:[
             [['山田'],   (r)=>r.name==='山田'],
+            [['鈴木'],   (r)=>r.name==='鈴木'],
         ],
     })
     window.Human = Human
@@ -170,31 +171,69 @@ window.addEventListener('DOMContentLoaded', async(event) => {
         class: 'Human', // クラスがグローバル変数なら文字列でも指定できる
         inouts:[
             [['山田'],   (r)=>r.name==='山田'],
+            [['鈴木'],   (r)=>r.name==='鈴木'],
         ],
     })
     delete window.Human
+
+    /*
+    // inouts の引数は constructor か method/setter のいずれかのみ。両方の引数をinoutsで指定することはできない。
+    bb.test({ // メソッド
+        class: Human,  // constructor  テスト対象がconstructor & method/setter のとき inouts の引数渡す先が特定できず例外発生する
+        method: 'say', // method
+        inouts:[
+            [[], (r)=>{console.log(r); return r==='undefinedは「undefined」と言った。'}],
+            [['山田'], (r)=>{console.log(r); return r==='山田は「undefined」と言った。'}],
+        ],
+    })
     */
 
-    // TestError: options.methodはメソッド名を指定してください。ゲッター・セッター・プロパティには非対応です。
-    bb.test({
-        //class: Human,
+    bb.test({ // メソッド
         class: new Human('山田'),
-        //method: 'name', // method でなくゲッターなのでエラー。メソッド以外のテストはAssertion.t/f/e()を使う。いずれ改善したい。
+        method: 'say', // method
+        inouts:[
+            [[], (r)=>{console.log(r); return r==='山田は「undefined」と言った。'}],
+            [['やあ'], (r)=>{console.log(r); return r==='山田は「やあ」と言った。'}],
+        ],
+    })
+    bb.test({ // ゲッター（コンストラクタ引数）セッターが未定義なら例外発生する（引数渡し先不明）
+        class: Human,
         method: 'name', // getter
         inouts:[
-            //[[], (r)=>r==='山田'],
+            [['山田'], (r)=>{console.log(r); return r==='山田'}],
+            [['鈴木'], (r)=>{console.log(r); return r==='鈴木'}],
+        ],
+    })
+
+    /*
+    bb.test({ // ゲッター（引数なし。セッターとして解釈されてしまう）
+        class: new Human('山田'),
+        method: 'name', // getter
+        inouts:[
+            [[], (r)=>{console.log(r); return r==='山田'}],
             [[], (r)=>{console.log(r); return r==='山田'}],
         ],
     })
-    bb.test({
-        class: Human,
-        method: 'name', // method でなくゲッターなのでエラー。メソッド以外のテストはAssertion.t/f/e()を使う。いずれ改善したい。
+    */
+    bb.test({ // ゲッター（引数なし。省略形）
+        class: new Human('山田'),
+        method: 'name', // getter
         inouts:[
-            [['山田'], (r)=>{console.log(r); return r==='山田'}],
-            [['鈴木'], (r)=>{console.log(r); return r==='山田'}],
+            (r)=>{console.log(r); return r==='山田'},
+            (r)=>{console.log(r); return r==='山田'},
         ],
     })
 
+    bb.test({ // セッター（コンストラクタ引数は不可能。ゲッターと判断される）
+        class: new Human('山田'),
+        method: 'name', // setter
+        inouts:[
+            ['太郎', (t)=>{console.log(t); return t.name==='太郎'}],
+            ['鈴木', (t)=>{console.log(t); return t.name==='鈴木'}],
+        ],
+    })
+    /*
+    */
 
     /*
     bb.assertion.t(()=>{const N='山田'; const h=new Human(N); return h.name===N;})

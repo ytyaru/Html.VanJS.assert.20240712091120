@@ -165,9 +165,9 @@ class BlackBox {
     test(options) {
         const OP = {...this.defaultOptions, ...options}
         const target = this._getInstance(OP)
-        const [mthNm, isAsync] = this._validMethod(OP, target)
-        if (isAsync) { this._testAsync(OP, target, mthNm) }
-        else { this._testSync(OP, target, mthNm) }
+        const [pType, isAsync] = this._validMethod(OP, target)
+        if (isAsync) { this._testAsync(OP, target, pType) }
+        else { this._testSync(OP, target, pType) }
         OP.tearDown(target)
     }
     fin() { this._a.fin() }
@@ -221,13 +221,20 @@ class BlackBox {
         // method,getter         ありえない。後で宣言されたほうが有効。
         // method,setter         同上
         // method,getter,setter  同上
+        console.log(Type.hasGetter(ins, options.method), Type.hasSetter(ins, options.method))
+        if (Type.isCls(options.class) && Type.hasGetter(ins, options.method) && Type.hasSetter(ins, options.method) && Array.isArray(options.inouts[0])) { console.log(`コンストラクタに引数を渡してゲッターをテスト対象とします。`); return ['getter', false] }
+        if (Type.isCls(options.class) && Type.hasSetter(ins, options.method) && Array.isArray(options.inouts[0])) { throw new Error(`inoutsの引数をconstractor/setterのどちらに渡すべきか特定できません。classをconstructorでなくnewしてinstanceにすればsetterの代入値に渡すものと判断できます。`) }
+        if (!Type.isCls(options.class) && Type.hasGetter(ins, options.method) && !Type.hasSetter(ins, options.method) && Array.isArray(options.inouts[0])) { throw new Error(`inoutsに不要な引数があります。引数はclassがconstructorかmethodがmethod/setterの場合に必要です。classがinstanceかつmethodがgetterのときは不要です。setterが未実装の可能性もあります。対象クラスの宣言を確認してください。`) }
         if (Type.hasGetter(ins, options.method) && Type.hasSetter(ins, options.method)) {
             if (Array.isArray(options.inouts[0])) { return ['setter', false] }
             else { return ['getter', false] }
         }
+        else if (Type.hasSetter(ins, options.method)) {
+            if (Array.isArray(options.inouts[0])) { return ['setter', false] }
+        }
+        //else if (Type.hasSetter(ins, options.method)) { return ['setter', false] }
         else if (Type.hasGetter(ins, options.method)) { return ['getter', false] }
-        else if (Type.hasSetter(ins, options.method)) { return ['setter', false] }
-        if ('function'!==typeof ins[options.method]) { throw new TestError(`options.methodはメソッド名を指定してください。ゲッター・セッター・プロパティには非対応です。`) }
+        if ('function'!==typeof ins[options.method]) { throw new TestError(`options.methodはメソッド・ゲッター・セッター名のいずれかを指定してください。フィールド値には非対応です。`) }
         /*
         if (Type.hasMethod(ins, options.method) && Type.hasGetter(ins, options.method)) {
             if (Array.isArray(options.inouts[0])) { return ['setter', false] }
@@ -242,35 +249,50 @@ class BlackBox {
         Type.hasSetter(ins, options.method)
         */
         
-        return [options.method, 'AsyncFunction,AsyncGeneratorFunction'.split(',').some(n=>n===(ins[options.method]).constructor.name)]
+        //return [options.method, 'AsyncFunction,AsyncGeneratorFunction'.split(',').some(n=>n===(ins[options.method]).constructor.name)]
+        return ['method', 'AsyncFunction,AsyncGeneratorFunction'.split(',').some(n=>n===(ins[options.method]).constructor.name)]
     }
-    _testSync(options, target, mthNm) {
+    _testSync(options, target, pType) {
         for (let io of options.inouts) {
-            const [args, expected] = io
-            this._a[options.assert](...this._testSyncAssArgs(options, target, mthNm, args, expected))
+            //const [args, expected] = io
+            const [args, expected] = Array.isArray(io) ? io : [[], io]
+            if (Array.isArray(args) && Type.isCls(options.class)) {
+                if ('method,setter'.split(',').some(n=>n===pType)) { throw new Error(`inoutsの引数を渡す先が定まりません。classがコンストラクタでテスト対象がmethodかsetterのため、渡す先が二つあるからです。対処方法はclassの値をインスタンスにすることです。これにて引数はmethod/setterに渡されます。`) }
+                target = Reflect.construct(options.class, args)
+            }
+            this._a[options.assert](...this._testSyncAssArgs(options, target, pType, args, expected))
         }
     }
-    //_testSyncAssArgs(options, target, mthNm, args, expected) { return 'e'===options.assert ? [...expected, ()=>target[mthNm](...args)] : [()=>expected(target[mthNm](...args))] }
-    _testSyncAssArgs(options, target, mthNm, args, expected) { return 'e'===options.assert ? [...expected, ()=>this._runTestMethod(options, target, mthNm, args)] : [()=>expected(this._runTestMethod(options, target, mthNm, args))] }
-    _runTestMethod(options, target, mthNm, args) {
-        console.log(mthNm, options.method, Reflect.get(target, options.method))
-        //if ('constructor'===mthNm) { return Reflect.construct(window[C], args ?? []) }
-        if ('constructor'===mthNm) { return Reflect.construct(target.constructor, args ?? []) }
-        else if ('getter'===mthNm) { return Reflect.get(target, options.method) }
-        else if ('setter'===mthNm) { return Reflect.set(target, options.method, args) }
-//        else if ('deleter'===mthNm) {}
-        else { return target[mthNm](...args) }
+    //_testSyncAssArgs(options, target, pType, args, expected) { return 'e'===options.assert ? [...expected, ()=>target[pType](...args)] : [()=>expected(target[pType](...args))] }
+    //_testSyncAssArgs(options, target, pType, args, expected) { return 'e'===options.assert ? [...expected, ()=>this._runTestMethod(options, target, pType, args)] : [()=>expected(this._runTestMethod(options, target, pType, args))] }
+    _testSyncAssArgs(options, target, pType, args, expected) {
+        return 'e'===options.assert 
+        ? [...expected, ()=>this._runTestMethod(options, target, pType, args)] 
+        : [()=>expected(this._runTestMethod(options, target, pType, args))] }
+    _runTestMethod(options, target, pType, args) {
+        console.log(pType, options.method, Reflect.get(target, options.method))
+        //if ('constructor'===pType) { return Reflect.construct(window[C], args ?? []) }
+        if ('constructor'===pType) { return Reflect.construct(target.constructor, args ?? []) }
+        else if ('getter'===pType) { return Reflect.get(target, options.method) }
+        else if ('setter'===pType) { Reflect.set(target, options.method, args); return target; }
+        //else if ('setter'===pType) { return Reflect.set(target, options.method, args) }
+//        else if ('deleter'===pType) {}
+//        else { return target[pType](...args) }
+        else { return target[options.method](...args) }
     }
-    _testAsync(options, target, mthNm) {
+    _testAsync(options, target, pType) {
         for (let io of options.inouts) {
-            const [args, expected] = io
+//            const [args, expected] = io
+            const [args, expected] = Array.isArray(io) ? io : [[], io]
             console.log(this._a[options.assert])
             this._a[options.assert](
                 ...('e'===options.assert
-                ? [...expected, (async()=>await target[mthNm](...args))]
-                : [(async()=>expected(await target[mthNm](...args)))])
+                ? [...expected, (async()=>await target[options.method](...args))]
+                : [(async()=>expected(await target[options.method](...args)))])
+//                ? [...expected, (async()=>await target[pType](...args))]
+//                : [(async()=>expected(await target[pType](...args)))])
 //                : [(async()=>{
-//                    const r = await target[mthNm](...args)
+//                    const r = await target[pType](...args)
 //                    console.log(r, expected(r))
 //                    return expected(r)
 //                })])
