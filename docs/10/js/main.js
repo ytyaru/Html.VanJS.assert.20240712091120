@@ -143,7 +143,35 @@ window.addEventListener('DOMContentLoaded', async(event) => {
     })
     */
 
+
+    // 関数のテスト
+    bb.test((v)=>v+1, [[[0], (r)=>r===1]])
+    bb.test((v)=>v+1, [
+        [[0], (r)=>r===1],
+        [[1], (r)=>r===2],
+        [[9], (r)=>r===10],
+        [[-1], (r)=>r===0],
+    ])
+    function plusOne(v) { return v+1 }
+    bb.test(plusOne, [[[0], (r)=>r===1]])
+    bb.test(plusOne, [
+        [[0], (r)=>r===1],
+        [[1], (r)=>r===2],
+        [[9], (r)=>r===10],
+        [[-1], (r)=>r===0],
+    ])
+    async function plusOneAsync(v) { return v+1 }
+    bb.test(plusOneAsync, [[[0], (r)=>r===1]])
+    bb.test(plusOneAsync, [
+        [[0], (r)=>r===1],
+        [[1], (r)=>r===2],
+        [[9], (r)=>r===10],
+        [[-1], (r)=>r===0],
+    ])
+
+    // getter/setterの宣言有無パターンテスト
     ;(function(){ // TypeError: (intermediate value) is not a function   セミコロンが先頭に必要……ウゼェ
+        // こんなコードは書くべきでない。そもそも書けてしまう状態が困る。構文解析の時点で例外を出して欲しい。
         class Human {
             constructor(name) { this._name = name }
             name() { return 'method' }     // 上書きされて参照できない！
@@ -153,6 +181,7 @@ window.addEventListener('DOMContentLoaded', async(event) => {
         a.e(TypeError, `(intermediate value).name is not a function`, ()=>(new Human()).name())
     })();
     ;(function(){
+        // こんなコードは書くべきでない。そもそも書けてしまう状態が困る。構文解析の時点で例外を出して欲しい。
         class Human {
             constructor(name) { this._name = name }
             get name() { return 'getter' } // 上書きされて参照できない！
@@ -166,6 +195,10 @@ window.addEventListener('DOMContentLoaded', async(event) => {
             constructor(name) { this._name = name }
             get name( ) { return this._name }
         }
+        bb.test(Human, (r)=>r===undefind)
+        bb.test(Human, [['山田', (r)=>r==='山田']])
+        bb.test(new Human('山田'), (r)=>r==='山田')
+        bb.test(new Human('山田'), [['鈴木', (r)=>r==='鈴木']])
     })();
     ;(function(){
         class Human { // セッターのみ
@@ -180,9 +213,6 @@ window.addEventListener('DOMContentLoaded', async(event) => {
             set name(v) { this._name = v }
         }
     })();
-
-
-
     class Human {
         constructor(name) { this._name = name }
         say(msg) { return `${this.name}は「${msg}」と言った。` }
@@ -195,6 +225,17 @@ window.addEventListener('DOMContentLoaded', async(event) => {
             else{reject(new TypeError(`第一引数ageは年齢を表す0以上100以下の整数値であるべきです。`))}
         }) }
     }
+
+    // 配列
+    bb.test(Human, [[[], (t)=>t.name===undefined]])
+    bb.test(Human, [[['山田'], (t)=>t.name==='山田']])
+    bb.test(new Human(), [[[], (t)=>t.name===undefined]])
+    bb.test(new Human('山田'), [[[], (t)=>t.name===undefined]])
+    bb.test(new Human('山田'), [[['鈴木'], (t)=>t.name==='鈴木']])
+
+    // オブジェクト
+
+
     bb.test({ // method がないときはコンストラクタのテストになる
         class: Human,
         inouts:[

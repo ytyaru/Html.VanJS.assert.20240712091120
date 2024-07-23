@@ -24,10 +24,13 @@ class Type {
             ['Primitive', [['Prim'], (v)=>v !== Object(v)]],
             // null,undefinedを抜いたprimitive
             ['ValidPrimitive', [['VPrim', 'VP'], (v)=>this.isNullOrUndefined(v) ? false : this.isPrim(v)]],
-            ['Class', [['Cls','Constructor'], (v)=>{
-                try { new v(); return true; }
-                catch (err) { return false }
-            }]],
+
+            ['Class', [['Cls','Constructor'], (v)=>'function'===typeof v && v.toString().match(/^class /)]],
+//            ['Class', [['Cls','Constructor'], (v)=>{
+//                if ('function'===v.constructor.name) { return false } 
+//                try { new v(); return true; }
+//                catch (err) { return false }
+//            }]],
             ['Instance', [['Ins'], (v, c)=>{
                 if (this.isPrimitive(v)) return false
                 if (this.isFunction(v)) return false
@@ -39,7 +42,8 @@ class Type {
             }]],
             ['ErrorClass', [['ErrCls'], (v)=>Error===v||Error.isPrototypeOf(v)]], // Error.isPrototypeOf(TypeError)
             ['ErrorInstance', [['ErrIns','Error','Err'], (v)=>v instanceof Error]], // new TypeError() instanceof Error
-            ['Function', [['Func', 'Fn'], (v)=>'function'===typeof v && !this.isCls(v)]],
+            //['Function', [['Func', 'Fn'], (v)=>'function'===typeof v && !this.isCls(v)]],
+            ['Function', [['Func', 'Fn'], (v)=>'function'===typeof v && !v.toString().match(/^class /)]],
             ['SyncFunction', [['SyncFn', 'SFn'], (v)=>this.isFn(v) && !this.isAFn(v) && !this.isGFn(v) && !this.isAGFn(v)]],
             ['AsyncFunction', [['AsyncFunc', 'AsyncFn', 'AFn'], (v)=>v instanceof this._types.AsyncFunction]],
             ['GeneratorFunction', [['GenFn', 'GFn'], (v)=>v instanceof this._types.GeneratorFunction]],
@@ -115,6 +119,7 @@ class Type {
     }
     isNUSome(...vs) { return vs.some(v=>this.isNU(v)) }
     isNUEvery(...vs) { return vs.every(v=>this.isNU(v)) }
+    isRange(v, min, max) { return min <= v && v <= max }
     getName(v) {
         const name = typeof v
         if ('function'===name) {

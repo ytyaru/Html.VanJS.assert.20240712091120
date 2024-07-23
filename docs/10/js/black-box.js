@@ -19,6 +19,7 @@ if (!Type) {
         isBool(v) { return 'boolean'===typeof v }
         isRange(v, min, max) { return min <= v && v <= max }
         isStr(v) { return 'string'===typeof v || v instanceof String }
+        isAry(v) { return Array.isArray(v) }
         isFn(v) { return 'function'===typeof v }
         isAFn(v) { return v instanceof (async()=>{}).constructor }
         isErrCls(v) { return Error.isPropertyOf(v) }
@@ -162,6 +163,56 @@ class BlackBox {
     }
     get assertion() { return this._a }
     get defaultOptions() { return {class:{name:'',args:[]},method:undefined,assert:'t',inouts:[[], (r)=>r===true], tearDown:(t)=>{}} }
+    test(...args) {
+        const OP = {assert:'t', tearDown:(t)=>{}, ...this._getOptions(...args)}
+        console.log(OP)
+        if (null===OP.class && Type.isFn(OP.method)) { this._testFn(OP) }
+        else { this._testClass(OP) }
+    }
+    _testFn(OP) {
+        for (let io of OP.inouts) {
+            
+            const [args, expected] = io
+            const [A,M] = this._getFnTestAssertMethod(OP, args, expected)
+            if (Type.isErrIns(expected)) { const e=expected; A(e.constructor, e.message, M) }
+            else if (Type.isFn(expected)) { A(M) }
+            else { throw new Error(`関数テストの引数不正です。引数は正常系[args, testCodeFn]か異常系[new ErrorType('msg'), throwErrorFn]のいずれかであるべきです。`) }
+//            if (Type.isErrIns(expected)) { const e=expected; this._a.e(e.constructor, e.message, M) }
+//            else if (Type.isFn(expected)) { this._a.t(async()=>expected(await OP.method(...args))) }
+//            else { throw new Error(`関数テストの引数不正です。引数は正常系[args, testCodeFn]か異常系[new ErrorType('msg'), throwErrorFn]のいずれかであるべきです。`) }
+        }
+        OP.tearDown()
+    }
+    _getIo(io) {
+        if (Type.isAry(io)) {
+            if (!Type.isRange(io.length, 2, 3)) { throw new Error(`inoutsが配列のときその要素数は2〜であるべきです。その内容は[args, testFn]です。argsはテスト対象の可変長引数を表す配列です。testFnはテスト対象の戻り値を引数にとり真偽値を返す関数です。なお例外発生テストはtestFnの代わりにErrorインスタンスを渡します。またはErrorコンストラクタとメッセージでも可能です。すなわち[args, new Error('msg')]か[args, Error, 'msg']です。`) }
+            if (!Type.isAry(io[0])) { throw new Error(`inoutsが配列のとき最初の要素は配列であるべきです。その内容はテスト対象に渡す引数です。可変長引数を表す配列です。`) }
+            if (Type.isErrIns(io[1])) {
+                return [io[0], io[1]]
+            } else if (Type.isErrCls(io[1]) && Type.isStr(io[2])) { return [io[0], new io[1](io[2])] }
+
+        } else if (Type.isFn(io)) { // テスト対象に渡す引数がない
+            return [[], io]
+        }
+    }
+    _getFnTestAssertMethod(OP, args, expected) {
+        if (Type.isAFn(OP.method)) {
+            if (Type.isErrIns(expected)) { return [this._a.e.bind(this._a), (async()=>await OP.method(...args))] }
+            else if (Type.isFn(expected)) { return [this._a.t.bind(this._a), (async()=>expected(await OP.method(...args)))] }
+        } else {
+            if (Type.isErrIns(expected)) { return [this._a.e.bind(this._a), (()=>OP.method(...args))] }
+            else if (Type.isFn(expected)) { return [this._a.t.bind(this._a), (()=>expected(OP.method(...args)))] }
+        }
+        throw new Error(`関数テストの引数不正です。引数は正常系[args, testCodeFn]か異常系[new ErrorType('msg'), throwErrorFn]のいずれかであるべきです。`)
+    }
+    _testClass(OP) {
+        const target = this._getInstance(OP)
+        const [pType, isAsync] = this._validMethod(OP, target)
+        if (isAsync) { this._testAsync(OP, target, pType) }
+        else { this._testSync(OP, target, pType) }
+        OP.tearDown(target)
+    }
+    /*
     test(options) {
 //        const OP = {...this.defaultOptions, ...options}
         const OP = {assert:'t', tearDown:(t)=>{}, ...this._getOptions(options)}
@@ -171,7 +222,37 @@ class BlackBox {
         else { this._testSync(OP, target, pType) }
         OP.tearDown(target)
     }
+    */
     fin() { this._a.fin() }
+    _getOptions(...args) {
+        if (0===args.length) { throw new Error(`test()の引数はオプションであるべきです。可変長引数であり[class, method, inouts]です。またはオブジェクトでも可能です。`) }
+        console.log(Type.isFn(args[0]), typeof args[0], Type.isCls(args[0]))
+        if (Type.isCls(args[0]) || Type.isIns(args[0])) {
+            if (Type.isRange(args.length, 2, 3)) {
+                const l = args.length - 1
+                if (!Type.isCls(args[0]) && !Type.isIns(args[0])) { throw new Error(`可変長引数のとき最初の要素はclassであるべきです。その内容は任意クラス（コンストラクタ）か、それをnewした戻り値のインスタンス、いずれかです。`) }
+                if (!Type.isAry(args[1])) { throw new Error(`可変長引数のとき最後の要素はinoutsであるべきです。その内容はテスト対象への引数と、assertに渡すテストコード関数です。`) }
+                if (l===2 && !Type.isStr(args[1])) { throw new Error(`可変長引数のとき二番目の要素はテスト対象プロパティ名であるべきです。その内容はメソッド・ゲッター・セッターのいずれかの名前を表す文字列です。`) }
+                const op = {class:args[0], inouts:args[l]}
+                if (l===2) { op.method = args[1] }
+                return op
+            } else { throw new Error(`可変長引数のとき要素数は2〜3のみ有効です。その内容は[class, inouts]か[class, method, inouts]です。`) }
+        }
+        else if (Type.isFn(args[0])) {
+            if (2===args.length) {
+                if (!Type.isAry(args[1])) { throw new Error(`可変長引数で最初の要素が関数のとき最後の要素はinoutsであるべきです。その内容はテスト対象への引数と、assertに渡すテストコード関数です。`) }
+                return ({class:null, method:args[0], inouts:args[1]})
+                
+            } else { throw new Error(`可変長引数で最初の要素が関数のとき要素数は2のみ有効です。その内容は[function, inouts]です。`) }
+        }
+        else if (Type.isObj(args[0])) {
+            if (!args[0].hasOwnProperty('class')) { throw new Error(`引数がオブジェクトのときキー'class'は必須です。その内容は任意クラス（コンストラクタ）か、それをnewした戻り値のインスタンス、いずれかです。キー'method'でテスト対象となるメソッド・ゲッター・セッター名を文字列で指定できます。ない場合はコンストラクタがテスト対象と判断します。`) }
+            if (!args[0].hasOwnProperty('inouts')) { throw new Error(`引数がオブジェクトのときキー'inouts'は必須です。その内容はテスト対象への引数と、assertに渡すテストコード関数です。キー'method'でテスト対象となるメソッド・ゲッター・セッター名を文字列で指定できます。ない場合はコンストラクタがテスト対象と判断します。`) }
+            return args[0]
+        }
+        else { throw new Error(`test()の引数はオプションであるべきです。可変長引数であり[class, method, inouts]です。またはオブジェクトでも可能です。`) }
+    }
+    /*
     _getOptions(options) {
         if (Array.isArray(options)) {
             if (Type.isRange(options.length, 2, 3)) {
@@ -190,9 +271,10 @@ class BlackBox {
             return options
         }
     }
+    */
     _getInstance(options) {
         const C = options.class
-        const [N,A] = [C.name, this._getArgs(options)]
+        const [N,A] = [C.name, this._getMethodArgs(options)]
         const ins = this._getInsFnStr(C, A)
         if (ins) { return ins }
         else if (Array.isArray(C)) {
@@ -201,7 +283,7 @@ class BlackBox {
             else { return this._getInsFnStr(C[0], C.splice(1)) }
         }
         else {
-            const [N,A] = [C.name, this._getArgs(options)]
+            const [N,A] = [C.name, this._getMethodArgs(options)]
             if (this._a._t.__isFn(N)) { return new N(...A) }
             else if (this._a._t.__isStr(N)) { return Reflect.construct(window[N], A) }
             else { throw new TestError(`options.class.nameはクラス名またはコンストラクタを指定してください。`) }
@@ -214,7 +296,7 @@ class BlackBox {
         else if (Type.isIns(C)) { return C }
         return false
     }
-    _getArgs(C) {
+    _getMethodArgs(C) {
         if (this._a._t.__isFn(C)) { return [] }
         else if (this._a._t.__isStr(C)) { return [] }
         else if (Array.isArray(C)) {
