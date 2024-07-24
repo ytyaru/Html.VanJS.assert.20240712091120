@@ -38,7 +38,7 @@ class Type {
                 if (this.isObj(v)) return false   // Object
                 if (this.isItr(v)) return false   // Iterator
                 //if ('Object'===v.constructor.name) return false   // Object
-                return this.isClass(c) ? c===i.constructor : true // cがあるときはそのクラスのインスタンスであるか確認する
+                return this.isCls(c) ? c===v.constructor : true // cがあるときはそのクラスのインスタンスであるか確認する
             }]],
             ['ErrorClass', [['ErrCls'], (v)=>Error===v||Error.isPrototypeOf(v)]], // Error.isPrototypeOf(TypeError)
             ['ErrorInstance', [['ErrIns','Error','Err'], (v)=>v instanceof Error]], // new TypeError() instanceof Error
@@ -54,12 +54,13 @@ class Type {
                 if (this.isNullOrUndefined(v)) { return false }
                 return 'function'===typeof v[Symbol.iterator]
             }]],
-            ['Empty', [['Blank'], (v)=>{
+            ['Empty', [['Blank'], (v, noErr)=>{
                 if (this.isItr(v)) {
                     if ('length,size'.split(',').some(n=>v[n]===0)) { return true }
                     return false
-                } else { throw new TypeError(`Not iterator.`) }
+                } else { if(noErr) {return false} else { throw new TypeError(`Not iterator.`) } }
             }]],
+            ['NullOrUndefinedOrEmpty', [['NUE'], (v)=>this.isNU(v) || this.isEmpty(v, true)]],
             ['Array', [['Ary', 'A'], (v)=>Array.isArray(v)]],
             ['Map', [[], (v)=>v instanceof Map]],
             ['Set', [[], (v)=>v instanceof Set]],
@@ -117,9 +118,13 @@ class Type {
             configurable: false,
         })
     }
+    // 使いそうだけど型というには微妙なAPIたち↓
     isNUSome(...vs) { return vs.some(v=>this.isNU(v)) }
     isNUEvery(...vs) { return vs.every(v=>this.isNU(v)) }
     isRange(v, min, max) { return min <= v && v <= max }
+//    isEmpty(v) { return this.isItr(v) && (0===v.length || 0===v.size) }
+//    isNullOrUndefinedOrEmpty(v) { return this.isNU(v) || this.isEmpty(v) }
+//    isNUE(v) { return this.isNU(v) || this.isEmpty(v) }
     getName(v) {
         const name = typeof v
         if ('function'===name) {

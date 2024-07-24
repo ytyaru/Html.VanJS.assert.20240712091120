@@ -156,7 +156,6 @@ class BlackBoxArgs {
     }
     */
 }
-
 class BlackBox {
     constructor(assertion) {
         this._a = assertion ?? new Assertion()
@@ -227,23 +226,66 @@ class BlackBox {
     _getOptions(...args) {
         if (0===args.length) { throw new Error(`test()の引数はオプションであるべきです。可変長引数であり[class, method, inouts]です。またはオブジェクトでも可能です。`) }
         console.log(Type.isFn(args[0]), typeof args[0], Type.isCls(args[0]))
-        if (Type.isCls(args[0]) || Type.isIns(args[0])) {
+        const l = args.length - 1
+        if (Type.isCls(args[0]) || Type.isIns(args[0])) { // クラスをテストする
             if (Type.isRange(args.length, 2, 3)) {
-                const l = args.length - 1
+//                const l = args.length - 1
                 if (!Type.isCls(args[0]) && !Type.isIns(args[0])) { throw new Error(`可変長引数のとき最初の要素はclassであるべきです。その内容は任意クラス（コンストラクタ）か、それをnewした戻り値のインスタンス、いずれかです。`) }
-                if (!Type.isAry(args[1])) { throw new Error(`可変長引数のとき最後の要素はinoutsであるべきです。その内容はテスト対象への引数と、assertに渡すテストコード関数です。`) }
+                if (!Type.isAry(args[l])) { throw new Error(`可変長引数のとき最後の要素はinoutsであるべきです。その内容はテスト対象への引数と、assertに渡すテストコード関数です。`) }
+                if (Type.isAry(args[l]))
+
                 if (l===2 && !Type.isStr(args[1])) { throw new Error(`可変長引数のとき二番目の要素はテスト対象プロパティ名であるべきです。その内容はメソッド・ゲッター・セッターのいずれかの名前を表す文字列です。`) }
                 const op = {class:args[0], inouts:args[l]}
                 if (l===2) { op.method = args[1] }
                 return op
             } else { throw new Error(`可変長引数のとき要素数は2〜3のみ有効です。その内容は[class, inouts]か[class, method, inouts]です。`) }
         }
-        else if (Type.isFn(args[0])) {
-            if (2===args.length) {
-                if (!Type.isAry(args[1])) { throw new Error(`可変長引数で最初の要素が関数のとき最後の要素はinoutsであるべきです。その内容はテスト対象への引数と、assertに渡すテストコード関数です。`) }
-                return ({class:null, method:args[0], inouts:args[1]})
-                
-            } else { throw new Error(`可変長引数で最初の要素が関数のとき要素数は2のみ有効です。その内容は[function, inouts]です。`) }
+        else if (Type.isFn(args[0])) { // 関数をテストする
+            if (Type.isAry(args[l])) { // 複数テスト
+                if (2===args.length) {
+                    if (!Type.isAry(args[1])) { throw new Error(`可変長引数で最初の要素が関数かつ最後の要素が配列のとき最後の要素はinoutsであるべきです。その内容はテスト対象への引数と、assertに渡すテストコード関数です。`) }
+                    return ({class:null, method:args[0], inouts:args[1]})
+                    
+                } else { throw new Error(`可変長引数で最初の要素が関数のとき要素数は2のみ有効です。その内容は[function, inouts]です。`) }
+            } else { throw new Error(`可変長引数で最初の要素が関数のとき最後の要素は配列であるべきです。その内容は[fn, [[args, assArgs],...]、[fn, [[args, ErrIns], ...]]、[fn, [[args, ErrCls, ErrMsg], ...]]です。`) }
+
+            /*
+            if (Type.isAry(args[l]) && 2===args.length && 2<=args[l][0].length) { // 複数テスト
+//            if (Type.isAry(args[l])) { // 複数テスト
+                if (2===args.length) {
+                    if (!Type.isAry(args[1])) { throw new Error(`可変長引数で最初の要素が関数かつ最後の要素が配列のとき最後の要素はinoutsであるべきです。その内容はテスト対象への引数と、assertに渡すテストコード関数です。`) }
+                    return ({class:null, method:args[0], inouts:args[1]})
+                    
+                } else { throw new Error(`可変長引数で最初の要素が関数のとき要素数は2のみ有効です。その内容は[function, inouts]です。`) }
+
+            } else if (!Type.isAry(args[l])) { // 単発テスト
+                if (args.length < 2) { throw new Error(`可変長引数で最初の要素が関数かつ最後の要素が配列でないとき、要素数は2以上必要です。その内容はたとえば[fn, args]や[fn, ErrIns]です。`) }
+                if (2===args.length) {
+                    if (Type.isFn(args[l])) { return ({class:null, method:args[0], inouts:[[], args[l]]}) }
+                    else if (Type.isErrIns(args[l])) { return ({class:null, method:args[0], inouts:[[], args[l]], assert:'e'}) }
+                    else if (Type.isErrCls(args[l])) { return ({class:null, method:args[0], inouts:[[], args[l]], assert:'e'}) }
+                    else { throw new Error(`可変長引数で最初の要素が関数かつ最後の要素が配列でないときで要素数が2のとき、その内容は[fn, args]か[fn, ErrIns]のみ有効です。`) }
+                }
+                else if (3===args.length) {
+                    if (Type.isAry(args[1])) {
+                        if (Type.isFn(args[l])) {return ({class:null, method:args[0], inouts:[args[1], args[l]]}) }
+                        if (Type.isStr(args[l])) {
+                        }
+                    }
+                    else if (Type.isErrCls(args[1])) {
+
+                    }
+                    else { throw new Error(`可変長引数で最初の要素が関数かつ要素数が3のとき、その内容は[fn, args, assArgs]、[fn, ErrCls, ErrMsg]、[fn, args, ErrIns]のみ有効です。`) }
+                }
+                else if (4===args.length) {
+                    
+                }
+                else {
+                   
+                }
+            }
+            else { throw new Error(`可変長引数で最初の要素が関数のとき後に続く配列は次のいずれかのみです。すなわち単発テスト引数か、複数テスト引数です。単発は[fn, metArgs, assArgs]、複数は[fn, [[metArgs, assArgs], ...]]を基本形とします。fnはテスト対象となる関数です。metArgsはテスト対象に渡す引数で、可変長引数を表す配列です。なければ引数なしと判断します。assArgsはテスト対象の戻り値を引数にとりテスト合否を表す真偽値を返す関数です。例外発生テストがしたいならassArgsはErrorクラスのインスタンスか、Errorコンストラクタとメッセージ文字列のいずれかを指定します。`) }
+            */
         }
         else if (Type.isObj(args[0])) {
             if (!args[0].hasOwnProperty('class')) { throw new Error(`引数がオブジェクトのときキー'class'は必須です。その内容は任意クラス（コンストラクタ）か、それをnewした戻り値のインスタンス、いずれかです。キー'method'でテスト対象となるメソッド・ゲッター・セッター名を文字列で指定できます。ない場合はコンストラクタがテスト対象と判断します。`) }

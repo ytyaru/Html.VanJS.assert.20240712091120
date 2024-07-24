@@ -143,6 +143,13 @@ window.addEventListener('DOMContentLoaded', async(event) => {
     })
     */
 
+    // 関数の単発テスト
+    bb.test(()=>1, (r)=>r===1)
+    bb.test((v)=>v+1, 4, (r)=>r===5)
+    bb.test(()=>{throw new Error('msg')}, new Error('msg'))
+    bb.test(()=>{throw new Error('msg')}, Error, 'msg')
+    bb.test((v)=>{if(0===v){throw new Error('msg')}}, 0, new Error('msg'))
+    bb.test((v)=>{if(0===v){throw new Error('msg')}}, 0, Error, 'msg')
 
     // 関数のテスト
     bb.test((v)=>v+1, [[[0], (r)=>r===1]])
@@ -195,10 +202,45 @@ window.addEventListener('DOMContentLoaded', async(event) => {
             constructor(name) { this._name = name }
             get name( ) { return this._name }
         }
-        bb.test(Human, (r)=>r===undefind)
-        bb.test(Human, [['山田', (r)=>r==='山田']])
-        bb.test(new Human('山田'), (r)=>r==='山田')
-        bb.test(new Human('山田'), [['鈴木', (r)=>r==='鈴木']])
+//        bb.test(Human, (r)=>r===undefind) // 可変長引数のとき最後の要素はinoutsであるべきです。
+//        bb.test(Human, [['山田', (r)=>r==='山田']]) // 真であるべき所で例外発生しました。
+//        bb.test(new Human('山田'), (r)=>r==='山田') // 可変長引数のとき最後の要素はinoutsであるべきです。
+//        bb.test(new Human('山田'), [['鈴木', (r)=>r==='鈴木']]) // 真であるべき所で例外発生しました。
+//        bb.test(Human, 'name', [['山田', (r)=>r==='山田']]) // 可変長引数のとき最後の要素はinoutsであるべきです。
+//        bb.test(new Human('山田'), 'name', [['鈴木', (r)=>r==='鈴木']]) // 可変長引数のとき最後の要素はinoutsであるべきです。
+//        bb.test(Human, [[[], (r)=>r===undefined]]) // 可変長引数のとき最後の要素はinoutsであるべきです。
+
+        // コンストラクタ
+        bb.test(Human, [[[], (t)=>t.name===undefined]])
+        bb.test(Human, [[['山田'], (t)=>t.name==='山田']])
+        bb.test(Human, [
+            [['山田'], (t)=>t.name==='山田'],
+            [['鈴木'], (t)=>t.name==='鈴木'],
+        ])
+        bb.test(new Human('山田'), [[[], (t)=>t.name===undefined]])
+        bb.test(new Human('山田'), [[[''], (t)=>t.name==='']])
+        bb.test(new Human('山田'), [[['鈴木'], (t)=>t.name==='鈴木']])
+        // ゲッター
+        bb.test(Human, 'name', [(r)=>r===undefined])
+        bb.test(new Human('山田'), 'name', [(r)=>r==='山田'])
+        // セッター？コンストラクタ？
+        bb.test(Human, 'name', [[[], (r)=>r===undefined]])
+
+        // 単発テスト
+        bb.test(Human, (t)=>t.name===undefined)
+        bb.test(Human, new Error('msg'))
+        bb.test(Human, Error, 'msg')
+        bb.test(Human, 'name', (r)=>r===undefined)
+        bb.test(Human, 'name', ['山田'], (r)=>r==='山田')
+        bb.test(Human, 'name', new Error('msg'))
+        bb.test(Human, 'name', Error, 'msg')
+        bb.test(new Human('山田'), (t)=>t.name==='山田')
+        bb.test(new Human('山田'), new Error('msg'))
+        bb.test(new Human('山田'), Error, 'msg')
+        bb.test(new Human('山田'), 'name', (r)=>r==='山田')
+        bb.test(new Human('山田'), 'name', ['鈴木'], (r)=>r==='鈴木')
+        bb.test(new Human('山田'), 'name', new Error('msg'))
+        bb.test(new Human('山田'), 'name', Error, 'msg')
     })();
     ;(function(){
         class Human { // セッターのみ
