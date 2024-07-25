@@ -78,6 +78,42 @@ window.addEventListener('DOMContentLoaded', async(event) => {
 
     */
 
+    const bbf = new BlackBoxFn(a)
+
+    // 関数の単発テスト
+    bbf.test(()=>1, (r)=>r===1)
+    //bbf.test((v)=>v+1, 4, (r)=>r===5)
+    bbf.test((v)=>v+1, [4], (r)=>r===5)
+    bbf.test(()=>{throw new Error('msg')}, new Error('msg'))
+    bbf.test(()=>{throw new Error('msg')}, Error, 'msg')
+    bbf.test((v)=>{if(0===v){throw new Error('msg')}}, [0], new Error('msg'))
+    bbf.test((v)=>{if(0===v){throw new Error('msg')}}, [0], Error, 'msg')
+
+    // 関数の複数形テスト
+    bbf.test((v)=>v+1, [[[0], (r)=>r===1]])
+    bbf.test((v)=>v+1, [
+        [[0], (r)=>r===1],
+        [[1], (r)=>r===2],
+        [[9], (r)=>r===10],
+        [[-1], (r)=>r===0],
+    ])
+    function plusOne(v) { return v+1 }
+    bbf.test(plusOne, [[[0], (r)=>r===1]])
+    bbf.test(plusOne, [
+        [[0], (r)=>r===1],
+        [[1], (r)=>r===2],
+        [[9], (r)=>r===10],
+        [[-1], (r)=>r===0],
+    ])
+    async function plusOneAsync(v) { return v+1 }
+    bbf.test(plusOneAsync, [[[0], (r)=>r===1]])
+    bbf.test(plusOneAsync, [
+        [[0], (r)=>r===1],
+        [[1], (r)=>r===2],
+        [[9], (r)=>r===10],
+        [[-1], (r)=>r===0],
+    ])
+
     const bb = new BlackBox(a)
     /*
     // 非同期
@@ -143,39 +179,9 @@ window.addEventListener('DOMContentLoaded', async(event) => {
     })
     */
 
-    // 関数の単発テスト
-    bb.test(()=>1, (r)=>r===1)
-    bb.test((v)=>v+1, 4, (r)=>r===5)
-    bb.test(()=>{throw new Error('msg')}, new Error('msg'))
-    bb.test(()=>{throw new Error('msg')}, Error, 'msg')
-    bb.test((v)=>{if(0===v){throw new Error('msg')}}, 0, new Error('msg'))
-    bb.test((v)=>{if(0===v){throw new Error('msg')}}, 0, Error, 'msg')
 
-    // 関数のテスト
-    bb.test((v)=>v+1, [[[0], (r)=>r===1]])
-    bb.test((v)=>v+1, [
-        [[0], (r)=>r===1],
-        [[1], (r)=>r===2],
-        [[9], (r)=>r===10],
-        [[-1], (r)=>r===0],
-    ])
-    function plusOne(v) { return v+1 }
-    bb.test(plusOne, [[[0], (r)=>r===1]])
-    bb.test(plusOne, [
-        [[0], (r)=>r===1],
-        [[1], (r)=>r===2],
-        [[9], (r)=>r===10],
-        [[-1], (r)=>r===0],
-    ])
-    async function plusOneAsync(v) { return v+1 }
-    bb.test(plusOneAsync, [[[0], (r)=>r===1]])
-    bb.test(plusOneAsync, [
-        [[0], (r)=>r===1],
-        [[1], (r)=>r===2],
-        [[9], (r)=>r===10],
-        [[-1], (r)=>r===0],
-    ])
 
+    /*
     // getter/setterの宣言有無パターンテスト
     ;(function(){ // TypeError: (intermediate value) is not a function   セミコロンが先頭に必要……ウゼェ
         // こんなコードは書くべきでない。そもそも書けてしまう状態が困る。構文解析の時点で例外を出して欲しい。
@@ -294,6 +300,11 @@ window.addEventListener('DOMContentLoaded', async(event) => {
         ],
     })
     delete window.Human
+    */
+
+
+
+
 
     /*
     // inouts の引数は constructor か method/setter のいずれかのみ。両方の引数をinoutsで指定することはできない。
@@ -307,6 +318,7 @@ window.addEventListener('DOMContentLoaded', async(event) => {
     })
     */
 
+    /*
     bb.test({ // メソッド
         class: new Human('山田'),
         method: 'say', // method
@@ -323,6 +335,10 @@ window.addEventListener('DOMContentLoaded', async(event) => {
             [['鈴木'], (r)=>{console.log(r); return r==='鈴木'}],
         ],
     })
+    */
+
+
+
 
     /*
     bb.test({ // ゲッター（引数なし。セッターとして解釈されてしまう）
@@ -334,6 +350,9 @@ window.addEventListener('DOMContentLoaded', async(event) => {
         ],
     })
     */
+
+
+    /*
     bb.test({ // ゲッター（引数なし。省略形）
         class: new Human('山田'),
         method: 'name', // getter
@@ -351,6 +370,7 @@ window.addEventListener('DOMContentLoaded', async(event) => {
             ['鈴木', (t)=>{console.log(t); return t.name==='鈴木'}],
         ],
     })
+    */
     /*
     */
 

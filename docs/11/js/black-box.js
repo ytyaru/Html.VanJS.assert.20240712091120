@@ -166,6 +166,7 @@ class BlackBoxBase {
         inouts: [[], (r)=>r===true], 
         tearDown:(t)=>{},
     } }
+    /*
     _getFnTestAssertMethod(OP, args, expected) {
         if (Type.isAFn(OP.method)) {
             if (Type.isErrIns(expected)) { return [this._a.e.bind(this._a), (async()=>await OP.method(...args))] }
@@ -176,11 +177,123 @@ class BlackBoxBase {
         }
         throw new Error(`関数テストの引数不正です。引数は正常系[args, testCodeFn]か異常系[new ErrorType('msg'), throwErrorFn]のいずれかであるべきです。`)
     }
+    */
 }
 class BlackBoxFn extends BlackBoxBase {
     constructor(assertion) { super(assertion) }
     test(...args) {
+        if (args.length < 2) return
         if (!Type.isFn(args[0])) return
+        const l = args.length - 1
+        if (Type.isAry(args[l]) && 2===args.length && 2<=args[l][0].length) { this._multi(l, ...args) } // 複数テスト
+        else { this._once(l, ...args) } // 単発テスト
+        /*
+        const OP = {assert:'t', tearDown:(t)=>{}, ...this._getOptions(...args)}
+        for (let io of OP.inouts) {
+            const [args, expected] = io
+            const [A,M] = this._getFnTestAssertMethod(OP, args, expected)
+            if (Type.isErrIns(expected)) { const e=expected; A(e.constructor, e.message, M) }
+            else if (Type.isFn(expected)) { A(M) }
+            else { throw new Error(`関数テストの引数不正です。引数は正常系[args, testCodeFn]か異常系[new ErrorType('msg'), throwErrorFn]のいずれかであるべきです。`) }
+        }
+        OP.tearDown()
+        */
+    }
+    _getOptions(...args) {
+        const l = args.length - 1
+        if (Type.isAry(args[l]) && 2===args.length && 2<=args[l][0].length) { this._multi(l, ...args) } // 複数テスト
+        else { this._once(l, ...args) } // 単発テスト
+    }
+    _baseOpt(...args) { return ({fn:args[0]}) }
+    _getOnceAsserts(l, ...args) {
+        if (2===args.length) {
+            if (Type.isFn(args[l])) { return ['t', [[], args[l]]] }
+            else if (Type.isErrIns(args[l])) { return ['e', [[], {type:args[l].constructor, msg:args[l].message}]] }
+            else if (Type.isErrCls(args[l])) { return ['e', [[], {type:args[l], msg:undefined}]] }
+            else { throw new Error(`可変長引数で最初の要素が関数かつ最後の要素が配列でないときで要素数が2のとき、その内容は[fn, args]か[fn, ErrIns]のみ有効です。`) }
+        }
+        else if (3===args.length) {
+            if (Type.isAry(args[1])) {
+                     if (Type.isFn(args[l])) {return ['t', [args[1], args[l]]] }
+                else if (Type.isErrCls(args[l])) {return ['e', [args[1], {type:args[l], msg:undefined}]] } 
+                else if (Type.isErrIns(args[l])) {return ['e', [args[1], {type:args[l].constructor, msg:undefined}]] }
+                else { throw new Error(`可変長引数でその要素数が3、かつその内容である最初の要素が関数、二番目が配列のとき、三番目の内容は関数か例外型か例外インスタンスであるべきです。`) }
+            }
+            else if (Type.isErrCls(args[1])) {
+                if (Type.isStr(args[l]) || Type.isRegExp(args[l])) { return ['e', [[], {type:args[1], msg:args[l]}]] }
+                else { throw new Error(`可変長引数でその要素数が3、かつその内容である最初の要素が関数、二番目が例外型のとき、三番目の内容は例外メッセージ文字列であるべきです。`) }
+            }
+            else { throw new Error(`可変長引数で最初の要素が関数かつ要素数が3のとき、その内容は[fn, args, assArgs]、[fn, ErrCls, ErrMsg]、[fn, args, ErrIns]のみ有効です。`) }
+        }
+        else if (4===args.length) {
+            if (Type.isAry(args[1]) && Type.isErrCls(args[2]) && (Type.isStr(args[3]) || Type.isRegExp(args[3]))) {return ['e', [args[1], {type:args[2], msg:args[3]}]] }
+        }
+        else { throw new Error(`可変長引数で最初の要素が関数かつ最後の要素が配列でないとき、可変長引数の要素数は2〜5であるべきです。`) }
+
+    }
+    _once(l, ...args) {
+        const op = this._baseOpt(...args)
+        const [A, IO] = this._getOnceAsserts(l, ...args)
+        op.assert = A
+        op.args= IO[0]
+        op.assArgs= IO[1]
+//        op.inouts = [IO]
+        console.log(op)
+        this._a[op.assert](...this._getAssertArgs(op))
+    }
+    _getAssertArgs(op) {
+        const ex = op.assArgs
+        console.log(`ex:`, ex)
+        if (Type.isAFn(op.fn)) {
+            if (Type.isFn(ex)) { return [(async()=>ex(await op.fn(...op.args)))] }
+            else if (Type.isObj(ex)) { return [ex.type, ex.msg, (async()=>await op.fn(...op.args))] }
+        }
+        else if (Type.isFn(op.fn)) {
+            if (Type.isFn(ex)) { return [(()=>ex(op.fn(...op.args)))] }
+            else if (Type.isObj(ex)) { return [ex.type, ex.msg, (()=>op.fn(...op.args))] }
+        }
+        throw new Error(`関数テストの引数不正です。引数は正常系[fn, args, testCodeFn]か異常系[fn, Error, 'msg']のいずれかであるべきです。: ${op.fn}, ${ex}`)
+    }
+
+    /*
+    _getAssertArgs(op) {
+        const ex = op.inouts[0][1]
+        if (Type.isAFn(op.fn)) {
+            if (Type.isFn(ex)) { return [(async()=>ex(await op.fn(...op.args)))] }
+            else if (Type.isObj(ex)) { return [ex.type, ex.msg, (async()=>await op.fn(...op.args))] }
+        }
+        else if (Type.isFn(op.fn)) {
+            if (Type.isFn(ex)) { return [(()=>ex(op.fn(...op.args)))] }
+            else if (Type.isObj(ex)) { return [ex.type, ex.msg, (()=>op.fn(...op.args))] }
+        }
+        throw new Error(`関数テストの引数不正です。引数は正常系[fn, args, testCodeFn]か異常系[fn, Error, 'msg']のいずれかであるべきです。`)
+    }
+    */
+    _multi(l, ...args) {
+        const op = this._baseOpt(l, ...args)
+        for (let io of args[l]) {
+            if (!Type.isAry(io)) { throw new Error(`inoutsの要素は配列であるべきです。その内容は[args, expected]です。expectedは正常系ならテストコード関数、異常系なら例外の型・メッセージ文字列です。`) }
+            if (io.length < 2) { throw new Error(`inoutの要素数は2以上あるはずです。その内容は[args, expected]です。expectedは正常系ならテストコード関数、異常系なら例外の型・メッセージ文字列です。`) }
+            if (!Type.isAry(io[0])) { throw new Error(`inoutの最初は配列であるべきです。これはテスト対象関数に渡す可変長引数を表します。`) }
+            const op = this._baseOpt(...args)
+            op.fn = args[0]
+            op.args = io[0]
+            const onceArgs = [op.fn, ...io]
+            console.log(onceArgs)
+            const [A, IO] = this._getOnceAsserts(onceArgs.length-1, ...onceArgs)
+            console.log(A, IO)
+            op.assert = A
+            //op.inouts = [IO]
+            op.assArgs= IO[1]
+            this._a[op.assert](...this._getAssertArgs(op))
+        }
+    }
+}
+/*
+class BlackBoxCls extends BlackBoxBase {
+    constructor(assertion) { super(assertion) }
+    test(...args) {
+        if (!Type.isCls(args[0]) || !Type.isIns(args[0])) return
         const OP = {assert:'t', tearDown:(t)=>{}, ...this._getOptions(...args)}
         for (let io of OP.inouts) {
             const [args, expected] = io
@@ -191,50 +304,23 @@ class BlackBoxFn extends BlackBoxBase {
         }
         OP.tearDown()
     }
-    _getOptions(...args) {
-        const l = args.length - 1
-        if (Type.isAry(args[l]) && 2===args.length && 2<=args[l][0].length) { this._multi(l, ...args) } // 複数テスト
-        else { this._once(l, ...args) } // 単発テスト
-    }
-    _once(l, ...args) {
-        if (2===args.length) {
-            if (Type.isFn(args[l])) { return ({class:null, method:args[0], inouts:[[], args[l]]}) }
-            else if (Type.isErrIns(args[l])) { return ({class:null, method:args[0], inouts:[[], args[l]], assert:'e'}) }
-            else if (Type.isErrCls(args[l])) { return ({class:null, method:args[0], inouts:[[], new args[l]()], assert:'e'}) }
-            else { throw new Error(`可変長引数で最初の要素が関数かつ最後の要素が配列でないときで要素数が2のとき、その内容は[fn, args]か[fn, ErrIns]のみ有効です。`) }
-        }
-        else if (3===args.length) {
-            if (Type.isAry(args[1])) {
-                     if (Type.isFn(args[l])) {return ({class:null, method:args[0], inouts:[args[1], args[l]]}) }
-                else if (Type.isErrCls(args[l])) {return ({class:null, method:args[0], inouts:[args[1], new args[l]()], assert:'e'})} 
-                else if (Type.isErrIns(args[l])) {return ({class:null, method:args[0], inouts:[args[1], args[l]], assert:'e'})}
-                else { throw new Error(`可変長引数でその要素数が3、かつその内容である最初の要素が関数、二番目が配列のとき、三番目の内容は関数か例外型か例外インスタンスであるべきです。`) }
-            }
-            else if (Type.isErrCls(args[1])) {
-                if (Type.isStr(args[l])) { return ({class:null, method:args[0], inouts:[[], new args[1](args[l])], assert:'e'}) }
-                else { throw new Error(`可変長引数でその要素数が3、かつその内容である最初の要素が関数、二番目が例外型のとき、三番目の内容は例外メッセージ文字列であるべきです。`) }
-            }
-            else { throw new Error(`可変長引数で最初の要素が関数かつ要素数が3のとき、その内容は[fn, args, assArgs]、[fn, ErrCls, ErrMsg]、[fn, args, ErrIns]のみ有効です。`) }
+}
+*/
 
-        }
-        else if (4===args.length) {
-            if (Type.isAry(args[1]) && Type.isErrCls(args[2]) && Type.isStr(args[3])) {return ({class:null, method:args[0], inouts:[args[1], new args[2](args[3])], assert:'e'})}
-        }
-        else { throw new Error(`可変長引数で最初の要素が関数かつ最後の要素が配列でないとき、可変長引数の要素数は2〜5であるべきです。`) }
+/*
+class BlackBox {
+    constructor(assertion) {
+        this._a = assertion ?? new Assertion()
+        this._fn = BlackBoxFn(this._a)
+        this._cls = BlackBoxFn(this._a)
     }
-    _multi(l, ...args) {
-        if (Type.isAry(args[l])) { // 複数テスト
-            if (2===args.length) {
-                if (!Type.isAry(args[1])) { throw new Error(`可変長引数で最初の要素が関数かつ最後の要素が配列のとき最後の要素はinoutsであるべきです。その内容はテスト対象への引数と、assertに渡すテストコード関数です。`) }
-                return ({class:null, method:args[0], inouts:args[1]})
-                
-            } else { throw new Error(`可変長引数で最初の要素が関数かつ最後の要素が配列のとき、可変長引数の要素数は2のみ有効です。その内容は[function, inouts]です。`) }
+    test(...args) {
+        this._fn.test(...args)
+        this._cls.test(...args)
+        throw new Error(`可変長引数の最初の要素は関数かクラスかインスタンスであるべきです。`)
     }
 }
-class BlackBoxCls extends BlackBoxBase {
-    constructor(assertion) { super(assertion) }
-}
-
+*/
 
 class BlackBox {
     constructor(assertion) {
@@ -502,4 +588,5 @@ class BlackBox {
 }
 
 window.BlackBox = BlackBox
+window.BlackBoxFn = BlackBoxFn 
 })()
