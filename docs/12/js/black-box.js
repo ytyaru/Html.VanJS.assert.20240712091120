@@ -362,9 +362,9 @@ class BlackBoxCls extends BlackBoxBase {
                 //const fn = this._getGetter(args[0], args[1])
                 const fn = this._getGetterFn(ins, args[1])
                 const o = {context:ctx, target:fn, args:[], isGetter:true}
-                if (Type.isFn(args[l])) { return {...o, assert:'t', assArgs:args[l]} }
-                if (Type.isErrCls(args[l])) { return {...o, assert:'e', assArgs:{type:args[l], msg:undefined}} }
-                if (Type.isErrIns(args[l])) { return {...o, assert:'e', assArgs:{type:args[l].constructor, msg:args[l].message}} }
+//                if (Type.isFn(args[l])) { return {...o, assert:'t', assArgs:args[l]} }
+//                if (Type.isErrCls(args[l])) { return {...o, assert:'e', assArgs:{type:args[l], msg:undefined}} }
+//                if (Type.isErrIns(args[l])) { return {...o, assert:'e', assArgs:{type:args[l].constructor, msg:args[l].message}} }
                 return this._getInouts(l, o, ...args)
             }
             /*
@@ -389,6 +389,18 @@ class BlackBoxCls extends BlackBoxBase {
                 return this._getInouts(l, o, ...args)
             }
             */
+            // インスタンス・メソッド
+            if (Type.isIns(args[0]) && this._hasMethod(args[0], args[1])) {
+                //const ctx = ins
+                const ctx = args[0]
+                //const fn = this._getGetter(args[0], args[1])
+                //const fn = this._getMethodFn(ins, args[1])
+                const fn = this._getMethodFn(ctx, args[1])
+                const o = {context:ctx, target:fn, args:[], isInstanceMethod:true}
+                return this._getInouts(l, o, ...args)
+            }
+
+
             throw new Error(`可変長引数で最初の要素がクラスかインスタンスで要素数が3のとき、そのテスト対象はコンストラクタ、staticメソッド、ゲッターのいずれかであるべきです。それに相応しい引数ではありませんでした。`)
         }
         else if (4===args.length) {
@@ -401,6 +413,10 @@ class BlackBoxCls extends BlackBoxBase {
                 const fn = this._getMethodFn(args[0], args[1])
                 const o = {context:args[0], target:fn, args:args[2], isStaticMethod:true}
                 return this._getInouts(l, o, ...args)
+            }
+            if (Type.isCls(args[0]) && this._hasMethod(args[0], args[1]) && Type.isErrCls(args[2]) && (Type.isStr(args[l]) || Type.isRegExp(args[l]))) {
+                const fn = this._getMethodFn(args[0], args[1])
+                return {context:args[0], target:fn, args:[], assert:'e', assArgs:{type:args[2], msg:args[l]}, isStaticMethod:true}
             }
             /*
             if (Type.isCls(args[0]) && Type.isStr(args[1]) && Type.isFn(args[0][args[1]]) && Type.isAry(args[2])) {
@@ -420,14 +436,39 @@ class BlackBoxCls extends BlackBoxBase {
                 return this._getInouts(l, o, ...args)
             }
             */
+            const ins = (Type.isCls(args[0]) ? new args[0]() : (Type.isIns(args[0]) ? args[0] : undefined))
+            console.log(ins)
             // getter（コンストラクタに引数を渡す）
             if (Type.isCls(args[0]) 
-                && this._hasGetter(args[0], args[1])
+                //&& this._hasGetter(args[0], args[1])
+                && this._hasGetter(ins, args[1])
                 && Type.isAry(args[2])) {
-                const ctx = args[0]
+                //const ctx = args[0]
+                const ctx = ins
                 const fn = this._getGetterFn(ctx, args[1])
                 const o = {context:ctx, target:fn, args:args[2], isGetter:true}
                 return this._getInouts(l, o, ...args)
+            }
+            console.log('******************************', 
+                Type.isCls(args[0]),
+                this._hasGetter(ins, args[1]),
+                this._hasGetter(args[0], args[1]),
+                Type.isErrCls(args[2]),
+                Type.isStr(args[l]),
+                Type.isRegExp(args[l]),
+            )
+            console.log(Type.hasGetter(ins, args[1]))
+            if (Type.isCls(args[0]) 
+                //&& this._hasGetter(args[0], args[1])
+                //&& this._hasGetter(new args[0](), args[1])
+                && this._hasGetter(ins, args[1])
+                && Type.isErrCls(args[2])
+                && (Type.isStr(args[l]) || Type.isRegExp(args[l]))) {
+                //const ctx = args[0]
+                const ctx = ins
+                const fn = this._getGetterFn(ctx, args[1])
+                return {context:ctx, target:fn, args:[], assert:'e', assArgs:{type:args[2], msg:args[l]}, isGetter:true}
+                //return {context:ctx, target:fn, args:args[2], assert:'e', assArgs:{type:args[2], msg:args[l]}, isGetter:true}
             }
             /*
             if (Type.isCls(args[0]) 
@@ -480,12 +521,26 @@ class BlackBoxCls extends BlackBoxBase {
                 return this._getInouts(l, o, ...args)
             }
             */
-            // method
-            if (Type.isIns(args[0]) && this._hasMethod(args[0], args[1]) && Type.isAry(args[2])) {
+            // instance method
+            if (Type.isIns(args[0]) && this._hasMethod(args[0], args[1]) && Type.isAry(args[2]) && !Type.isErrCls(args[l])) {
                 const ctx = args[0]
                 const fn = this._getMethodFn(ctx, args[1])
                 const o = {context:ctx, target:fn, args:args[2], isInstanceMethod:true}
                 return this._getInouts(l, o, ...args)
+            }
+            if (Type.isIns(args[0]) && this._hasMethod(args[0], args[1]) && Type.isAry(args[2]) && Type.isErrCls(args[l])) {
+                const ctx = args[0]
+                const fn = this._getMethodFn(ctx, args[1])
+                return {context:ctx, target:fn, args:args[2], assert:'e', assArgs:{type:args[l], msg:undefined}, isInstanceMethod:true}
+                //const o = {context:ctx, target:fn, args:args[2], isInstanceMethod:true}
+                //return this._getInouts(l, o, ...args)
+            }
+            if (Type.isIns(args[0]) && this._hasMethod(args[0], args[1]) && Type.isErrCls(args[2]) && (Type.isStr(args[l]) || Type.isRegExp(args[l]))) {
+                const ctx = args[0]
+                const fn = this._getMethodFn(ctx, args[1])
+                return {context:ctx, target:fn, args:[], assert:'e', assArgs:{type:args[2], msg:args[l]}, isInstanceMethod:true}
+                //const o = {context:ctx, target:fn, args:args[2], isInstanceMethod:true}
+                //return this._getInouts(l, o, ...args)
             }
             /*
             if (Type.isIns(args[0]) 
@@ -517,6 +572,31 @@ class BlackBoxCls extends BlackBoxBase {
             throw new Error(`可変長引数で最初の要素がクラスかインスタンスで要素数が4のとき、その引数が不正でした。`)
         }
         else if (5===args.length) {
+            // static method
+            if (Type.isCls(args[0]) 
+                && this._hasMethod(args[0], args[1])
+                && Type.isAry(args[2])
+                && Type.isErrCls(args[3])
+                && (Type.isStr(args[l]) || Type.isRegExp(args[l]))) {
+                const ctx = args[0]
+                const fn = this._getMethodFn(ctx, args[1])
+                return {context:ctx, target:fn, args:args[2], assert:'e', assArgs:{type:args[3], msg:args[l]}, isStaticMethod:true}
+                //const o = {context:ctx, target:fn, args:args[2], isSetter:true}
+                //return this._getInouts(l, o, ...args)
+            }
+            // setter
+            if (Type.isIns(args[0]) 
+                && this._hasSetter(args[0], args[1])
+//                && Type.isAry(args[2])
+                && Type.isErrCls(args[3])
+                && (Type.isStr(args[l]) || Type.isRegExp(args[l]))) {
+                const ctx = args[0]
+                const fn = this._getSetterFn(ctx, args[1])
+                return {context:ctx, target:fn, args:args[2], assert:'e', assArgs:{type:args[3], msg:args[l]}, isSetter:true}
+                //const o = {context:ctx, target:fn, args:args[2], isSetter:true}
+                //return this._getInouts(l, o, ...args)
+            }
+            // instance method
             if (Type.isIns(args[0]) 
                 && this._hasMethod(args[0], args[1])
                 && Type.isAry(args[2])
@@ -524,8 +604,9 @@ class BlackBoxCls extends BlackBoxBase {
                 && (Type.isStr(args[l]) || Type.isRegExp(args[l]))) {
                 const ctx = args[0]
                 const fn = this._getMethodFn(ctx, args[1])
-                const o = {context:ctx, target:fn, args:args[2], isInstanceMethod:true}
-                return this._getInouts(l, o, ...args)
+                return {context:ctx, target:fn, args:args[2], assert:'e', assArgs:{type:args[3], msg:args[l]}, isInstanceMethod:true}
+                //const o = {context:ctx, target:fn, args:args[2], isInstanceMethod:true}
+                //return this._getInouts(l, o, ...args)
             }
             throw new Error(`可変長引数で最初の要素がクラスかインスタンスで要素数が5のとき、その引数が不正でした。`)
         }

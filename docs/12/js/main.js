@@ -95,16 +95,28 @@ window.addEventListener('DOMContentLoaded', async(event) => {
     })();
     ;(function(){
         class Human { constructor(n) { throw new TypeError('msg') } }
-        bbc.test(Human, TypeError, 'msg')
+        bbc.test(Human, new TypeError('msg'))
     })();
     ;(function(){
         class Human { constructor(n) { throw new TypeError('msg') } }
-        bbc.test(Human, new TypeError('msg'))
+        bbc.test(Human, TypeError, 'msg')
     })();
     // static method
     ;(function(){
         class Human { static m() {return 1} }
         bbc.test(Human, 'm', (r)=>r===1)
+    })();
+    ;(function(){
+        class Human { static m() {throw new TypeError()} }
+        bbc.test(Human, 'm', TypeError)
+    })();
+    ;(function(){
+        class Human { static m() {throw new TypeError('msg')} }
+        bbc.test(Human, 'm', new TypeError('msg'))
+    })();
+    ;(function(){
+        class Human { static m() {throw new TypeError('msg')} }
+        bbc.test(Human, 'm', TypeError, 'msg')
     })();
     // ゲッター
     ;(function(){
@@ -123,10 +135,34 @@ window.addEventListener('DOMContentLoaded', async(event) => {
         class Human { constructor(n) { this._name = n } get name(){return this._name} set name(v){} }
         bbc.test(new Human('山田'), 'name', (r)=>r==='山田')
     })();
+    ;(function(){
+        class Human { constructor(n) { this._name = n } get name(){throw new TypeError()} }
+        bbc.test(Human, 'name', TypeError)
+    })();
+    ;(function(){
+        class Human { constructor(n) { this._name = n } get name(){throw new TypeError('msg')} }
+        bbc.test(Human, 'name', new TypeError('msg'))
+    })();
+    ;(function(){
+        class Human { constructor(n) { this._name = n } get name(){throw new TypeError('msg')} }
+        bbc.test(Human, 'name', TypeError, 'msg')
+    })();
+
     // static method と ゲッター が同名である場合、static methodを優先してテスト対象とする（コンストラクタ表記による同名ゲッターのテスト不可。その場合はインスタンス表記に変えることで可能）
     ;(function(){
         class Human { static name() {return 1} constructor(n) { this._name = n } get name(){return this._name} set name(v){} }
         bbc.test(Human, 'name', (r)=>r===1) // static method をテスト対象とする
+        bbc.test(new Human('山田'), 'name', (r)=>r==='山田') // getter をテスト対象とする
+    })();
+    ;(function(){
+        class Human { static name() {throw new TypeError()} constructor(n) { this._name = n } get name(){return this._name} set name(v){} }
+        bbc.test(Human, 'name', TypeError) // static method をテスト対象とする
+        bbc.test(new Human('山田'), 'name', (r)=>r==='山田') // getter をテスト対象とする
+    })();
+   ;(function(){
+        class Human { static name() {throw new TypeError('msg')} constructor(n) { this._name = n } get name(){return this._name} set name(v){} }
+        bbc.test(Human, 'name', TypeError, 'msg') // static method をテスト対象とする
+        bbc.test(Human, 'name', new TypeError('msg')) // static method をテスト対象とする
         bbc.test(new Human('山田'), 'name', (r)=>r==='山田') // getter をテスト対象とする
     })();
 
@@ -141,6 +177,20 @@ window.addEventListener('DOMContentLoaded', async(event) => {
         //bbc.test(Human, 'name', '山田', (t)=>t._name==='山田山田') // 第一引数がコンストラクタの場合セッター確認させない仕様
         bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田山田')
     })();
+    ;(function(){
+        class Human { constructor(n) { this._name = n } set name(v){throw new TypeError()} }
+        //bbc.test(Human, 'name', '山田', (t)=>t._name==='山田山田') // 第一引数がコンストラクタの場合セッター確認させない仕様
+        //bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田山田')
+        bbc.test(new Human(), 'name', '山田', TypeError)
+    })();
+    ;(function(){ // ゲッターもある
+        class Human { constructor(n) { this._name = n } set name(v){throw new TypeError('msg')} get name(){return this._name}}
+        //bbc.test(Human, 'name', '山田', (t)=>t._name==='山田山田') // 第一引数がコンストラクタの場合セッター確認させない仕様
+        //bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田山田')
+        bbc.test(new Human(), 'name', '山田', TypeError, 'msg')
+        bbc.test(new Human(), 'name', '山田', new TypeError('msg'))
+    })();
+
     // static method, setter がある
     ;(function(){
         class Human { static name() {return 1} constructor(n) { this._name = n } set name(v){this._name=v} }
@@ -156,7 +206,416 @@ window.addEventListener('DOMContentLoaded', async(event) => {
         bbc.test(Human, 'name', ['山田'], (r)=>r===1)
         bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田')
         bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田')
+        // ↑セッターに配列を代入する意図のテスト。これはメソッドに引数を渡す可変長配列と一見見分けがつかないように見える。だがstatic method と setter ならクラスかインスタンスで区別可能。だがinstance methodだと見分けがつかない。ただし問題にもならない。なぜならinstance methodとsetterはどちらもインスタンス文脈内で宣言するものであり、同名ならばどちらか一方しか実装できないから。両方表記すると、後で宣言されたもので上書きされる仕様っぽい。
     })();
+    ;(function(){
+        class Human { static name() {throw new TypeError()} constructor(n) { this._name = n } set name(v){this._name=v} }
+//        bbc.test(Human, 'name', '山田', (r)=>r===1) // 引数不正エラー
+        //bbc.test(Human, 'name', ['山田'], (r)=>r===1)
+        bbc.test(Human, 'name', ['山田'], TypeError)
+        bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田')
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田')
+    })();
+    ;(function(){
+        class Human { static name() {throw new TypeError('msg')} constructor(n) { this._name = n } set name(v){this._name=v} }
+//        bbc.test(Human, 'name', '山田', (r)=>r===1) // 引数不正エラー
+        //bbc.test(Human, 'name', ['山田'], (r)=>r===1)
+        bbc.test(Human, 'name', ['山田'], TypeError, 'msg')
+        bbc.test(Human, 'name', ['山田'], new TypeError('msg'))
+        bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田')
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田')
+    })();
+
+
+    // instance method
+    ;(function(){
+        class Human { m() {return 2} }
+        //bbc.test(Human, 'm', (r)=>r===2) // 引数エラー
+        bbc.test(new Human(), 'm', (r)=>r===2)
+    })();
+    ;(function(){ // 同名 static method もある場合
+        class Human { static m() {return 1} m() {return 2} }
+        bbc.test(Human, 'm', (r)=>r===1)
+        bbc.test(new Human(), 'm', (r)=>r===2)
+    })();
+    ;(function(){
+        class Human { m() {throw new TypeError()} }
+        //bbc.test(Human, 'm', (r)=>r===2) // 引数エラー
+        bbc.test(new Human(), 'm', TypeError)
+    })();
+    ;(function(){
+        class Human { m() {throw new TypeError('msg')} }
+        //bbc.test(Human, 'm', (r)=>r===2) // 引数エラー
+        bbc.test(new Human(), 'm', TypeError, 'msg')
+        bbc.test(new Human(), 'm', new TypeError('msg'))
+    })();
+    ;(function(){ // 同名 static method もある場合
+        class Human { static m() {return 1} m() {throw new TypeError()} }
+        bbc.test(Human, 'm', (r)=>r===1)
+        //bbc.test(new Human(), 'm', (r)=>r===2)
+        bbc.test(new Human(), 'm', TypeError)
+    })();
+    ;(function(){ // 同名 static method もある場合
+        class Human { static m() {return 1} m() {throw new TypeError('msg')} }
+        bbc.test(Human, 'm', (r)=>r===1)
+        //bbc.test(new Human(), 'm', (r)=>r===2)
+        bbc.test(new Human(), 'm', TypeError, 'msg')
+        bbc.test(new Human(), 'm', new TypeError('msg'))
+    })();
+
+
+    // 引数あるパターン（コンストラクタ、メソッド、セッター）
+    // 引数あるパターン（コンストラクタ）
+    ;(function(){
+        class Human { constructor(n) { this._name = n } }
+        bbc.test(Human, ['山田'], (t)=>t._name==='山田')
+    })();
+    ;(function(){
+        class Human { constructor(n) { throw new TypeError() } }
+        bbc.test(Human, ['山田'], TypeError)
+    })();
+    ;(function(){
+        class Human { constructor(n) { throw new TypeError('msg') } }
+        bbc.test(Human, ['山田'], new TypeError('msg'))
+    })();
+    ;(function(){
+        class Human { constructor(n) { throw new TypeError('msg') } }
+        bbc.test(Human, ['山田'], TypeError, 'msg')
+    })();
+    // 引数あるパターン（static メソッド）
+    ;(function(){
+        class Human { static name(v) {return 'static:'+v} constructor(n) { this._name = n } get name(){return this._name} set name(v){this._name=v;} }
+        bbc.test(Human, 'name', ['引数'], (r)=>r==='static:引数') // static method をテスト対象とする
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田') // setter をテスト対象とする
+    })();
+    ;(function(){
+        class Human { static name(v) {throw new TypeError()} constructor(n) { this._name = n } get name(){return this._name} set name(v){this._name=v;} }
+        //bbc.test(Human, 'name', ['引数'], (r)=>r==='static:引数') // static method をテスト対象とする
+        bbc.test(Human, 'name', ['引数'], TypeError) // static method をテスト対象とする
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田') // setter をテスト対象とする
+    })();
+    ;(function(){
+        class Human { static name(v) {throw new TypeError('msg')} constructor(n) { this._name = n } get name(){return this._name} set name(v){this._name=v;} }
+        //bbc.test(Human, 'name', ['引数'], (r)=>r==='static:引数') // static method をテスト対象とする
+        bbc.test(Human, 'name', ['引数'], TypeError, 'msg') // static method をテスト対象とする
+        bbc.test(Human, 'name', ['引数'], new TypeError('msg')) // static method をテスト対象とする
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田') // setter をテスト対象とする
+    })();
+    // 引数あるパターン（セッター）：先述にて試験済み。むしろ引数ないパターンがありえないので。
+    // 引数あるパターン（instance メソッド）
+    ;(function(){
+        class Human { m(v) {return 'instance:'+v} }
+        //bbc.test(Human, 'm', (r)=>r===2) // 引数エラー
+        bbc.test(new Human(), 'm', ['引数'], (r)=>r==='instance:引数')
+    })();
+    ;(function(){ // 同名 static method もある場合
+        class Human { static m(v) {return `static:${v}`} m(v) {return `instance:${v}`} }
+        bbc.test(Human, 'm', ['引数'], (r)=>r===`static:引数`)
+        bbc.test(new Human(), 'm', ['引数'], (r)=>r===`instance:引数`)
+    })();
+    ;(function(){
+        class Human { m(v) {throw new TypeError()} }
+        //bbc.test(Human, 'm', (r)=>r===2) // 引数エラー
+        bbc.test(new Human(), 'm', ['引数'], TypeError)
+    })();
+    ;(function(){
+        class Human { m(v) {throw new TypeError('msg')} }
+        //bbc.test(Human, 'm', (r)=>r===2) // 引数エラー
+        bbc.test(new Human(), 'm', ['引数'], TypeError, 'msg')
+        bbc.test(new Human(), 'm', ['引数'], new TypeError('msg'))
+    })();
+    ;(function(){ // 同名 static method もある場合
+        class Human { static m(v) {return `static:${v}`} m(v) {throw new TypeError()} }
+        bbc.test(Human, 'm', ['引数'], (r)=>r===`static:引数`)
+        bbc.test(new Human(), 'm', ['引数'], TypeError)
+    })();
+    ;(function(){ // 同名 static method もある場合
+        class Human { static m(v) {return `static:${v}`} m(v) {throw new TypeError('msg')} }
+        bbc.test(Human, 'm', ['引数'], (r)=>r===`static:引数`)
+        bbc.test(new Human(), 'm', ['引数'], TypeError, 'msg')
+        bbc.test(new Human(), 'm', ['引数'], new TypeError('msg'))
+    })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // 非同期
+    // コンストラクタは非同期にできないのでテスト不要
+    /*
+    ;(function(){
+        class Human { constructor(n) { this._name = n } }
+        bbc.test(Human, (t)=>t._name===undefined)
+    })();
+    ;(function(){
+        class Human { constructor(n) { throw new TypeError() } }
+        bbc.test(Human, TypeError)
+    })();
+    ;(function(){
+        class Human { constructor(n) { throw new TypeError('msg') } }
+        bbc.test(Human, new TypeError('msg'))
+    })();
+    ;(function(){
+        class Human { constructor(n) { throw new TypeError('msg') } }
+        bbc.test(Human, TypeError, 'msg')
+    })();
+    */
+    // static method
+    ;(function(){
+        class Human { static async m() {return 1} }
+        bbc.test(Human, 'm', (r)=>r===1)
+    })();
+    ;(function(){
+        class Human { static async m() {throw new TypeError()} }
+        bbc.test(Human, 'm', TypeError)
+    })();
+    ;(function(){
+        class Human { static async m() {throw new TypeError('msg')} }
+        bbc.test(Human, 'm', new TypeError('msg'))
+    })();
+    ;(function(){
+        class Human { static async m() {throw new TypeError('msg')} }
+        bbc.test(Human, 'm', TypeError, 'msg')
+    })();
+    // ゲッター
+    // ゲッターは非同期にできないのでテスト不要
+    /*
+    ;(function(){
+        class Human { constructor(n) { this._name = n } get name(){return this._name} }
+        bbc.test(Human, 'name', (r)=>r===undefined)
+    })();
+    ;(function(){
+        class Human { constructor(n) { this._name = n } get name(){return this._name} }
+        bbc.test(new Human('山田'), 'name', (r)=>r==='山田')
+    })();
+    ;(function(){ // セッターもある場合
+        class Human { constructor(n) { this._name = n } get name(){return this._name} set name(v){} }
+        bbc.test(Human, 'name', (r)=>r===undefined)
+    })();
+    ;(function(){ // セッターもある場合
+        class Human { constructor(n) { this._name = n } get name(){return this._name} set name(v){} }
+        bbc.test(new Human('山田'), 'name', (r)=>r==='山田')
+    })();
+    ;(function(){
+        class Human { constructor(n) { this._name = n } get name(){throw new TypeError()} }
+        bbc.test(Human, 'name', TypeError)
+    })();
+    ;(function(){
+        class Human { constructor(n) { this._name = n } get name(){throw new TypeError('msg')} }
+        bbc.test(Human, 'name', new TypeError('msg'))
+    })();
+    ;(function(){
+        class Human { constructor(n) { this._name = n } get name(){throw new TypeError('msg')} }
+        bbc.test(Human, 'name', TypeError, 'msg')
+    })();
+    */
+    // static method と ゲッター が同名である場合、static methodを優先してテスト対象とする（コンストラクタ表記による同名ゲッターのテスト不可。その場合はインスタンス表記に変えることで可能）
+    ;(function(){
+        class Human { static async name() {return 1} constructor(n) { this._name = n } get name(){return this._name} set name(v){} }
+        bbc.test(Human, 'name', (r)=>r===1) // static method をテスト対象とする
+        bbc.test(new Human('山田'), 'name', (r)=>r==='山田') // getter をテスト対象とする
+    })();
+    ;(function(){
+        class Human { static async name() {throw new TypeError()} constructor(n) { this._name = n } get name(){return this._name} set name(v){} }
+        bbc.test(Human, 'name', TypeError) // static method をテスト対象とする
+        bbc.test(new Human('山田'), 'name', (r)=>r==='山田') // getter をテスト対象とする
+    })();
+   ;(function(){
+        class Human { static async name() {throw new TypeError('msg')} constructor(n) { this._name = n } get name(){return this._name} set name(v){} }
+        bbc.test(Human, 'name', TypeError, 'msg') // static method をテスト対象とする
+        bbc.test(Human, 'name', new TypeError('msg')) // static method をテスト対象とする
+        bbc.test(new Human('山田'), 'name', (r)=>r==='山田') // getter をテスト対象とする
+    })();
+
+    // セッター
+    // セッターは非同期にできないのでテスト不要
+    /*
+    ;(function(){
+        class Human { constructor(n) { this._name = n } set name(v){this._name=v+v} }
+        //bbc.test(Human, 'name', '山田', (t)=>t._name==='山田山田') // 第一引数がコンストラクタの場合セッター確認させない仕様
+        bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田山田')
+    })();
+    ;(function(){ // ゲッターもある
+        class Human { constructor(n) { this._name = n } set name(v){this._name=v+v} get name(){return this._name}}
+        //bbc.test(Human, 'name', '山田', (t)=>t._name==='山田山田') // 第一引数がコンストラクタの場合セッター確認させない仕様
+        bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田山田')
+    })();
+    ;(function(){
+        class Human { constructor(n) { this._name = n } set name(v){throw new TypeError()} }
+        //bbc.test(Human, 'name', '山田', (t)=>t._name==='山田山田') // 第一引数がコンストラクタの場合セッター確認させない仕様
+        //bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田山田')
+        bbc.test(new Human(), 'name', '山田', TypeError)
+    })();
+    ;(function(){ // ゲッターもある
+        class Human { constructor(n) { this._name = n } set name(v){throw new TypeError('msg')} get name(){return this._name}}
+        //bbc.test(Human, 'name', '山田', (t)=>t._name==='山田山田') // 第一引数がコンストラクタの場合セッター確認させない仕様
+        //bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田山田')
+        bbc.test(new Human(), 'name', '山田', TypeError, 'msg')
+        bbc.test(new Human(), 'name', '山田', new TypeError('msg'))
+    })();
+    */
+    // static method, setter がある
+    ;(function(){
+        class Human { static async name() {return 1} constructor(n) { this._name = n } set name(v){this._name=v} }
+//        bbc.test(Human, 'name', '山田', (r)=>r===1) // 引数不正エラー
+        bbc.test(Human, 'name', ['山田'], (r)=>r===1)
+        bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田')
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田')
+    })();
+    // static method, getter, setter がある
+    ;(function(){
+        class Human { static async name() {return 1} constructor(n) { this._name = n } set name(v){this._name=v} get name(){return this._name} }
+//        bbc.test(Human, 'name', '山田', (r)=>r===1) // 引数不正エラー
+        bbc.test(Human, 'name', ['山田'], (r)=>r===1)
+        bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田')
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田')
+        // ↑セッターに配列を代入する意図のテスト。これはメソッドに引数を渡す可変長配列と一見見分けがつかないように見える。だがstatic method と setter ならクラスかインスタンスで区別可能。だがinstance methodだと見分けがつかない。ただし問題にもならない。なぜならinstance methodとsetterはどちらもインスタンス文脈内で宣言するものであり、同名ならばどちらか一方しか実装できないから。両方表記すると、後で宣言されたもので上書きされる仕様っぽい。
+    })();
+    ;(function(){
+        class Human { static async name() {throw new TypeError()} constructor(n) { this._name = n } set name(v){this._name=v} }
+//        bbc.test(Human, 'name', '山田', (r)=>r===1) // 引数不正エラー
+        //bbc.test(Human, 'name', ['山田'], (r)=>r===1)
+        bbc.test(Human, 'name', ['山田'], TypeError)
+        bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田')
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田')
+    })();
+    ;(function(){
+        class Human { static async name() {throw new TypeError('msg')} constructor(n) { this._name = n } set name(v){this._name=v} }
+//        bbc.test(Human, 'name', '山田', (r)=>r===1) // 引数不正エラー
+        //bbc.test(Human, 'name', ['山田'], (r)=>r===1)
+        bbc.test(Human, 'name', ['山田'], TypeError, 'msg')
+        bbc.test(Human, 'name', ['山田'], new TypeError('msg'))
+        bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田')
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田')
+    })();
+
+
+    // instance method
+    ;(function(){
+        class Human { async m() {return 2} }
+        //bbc.test(Human, 'm', (r)=>r===2) // 引数エラー
+        bbc.test(new Human(), 'm', (r)=>r===2)
+    })();
+    ;(function(){ // 同名 static method もある場合
+        class Human { static async m() {return 1} async m() {return 2} }
+        bbc.test(Human, 'm', (r)=>r===1)
+        bbc.test(new Human(), 'm', (r)=>r===2)
+    })();
+    ;(function(){
+        class Human { async m() {throw new TypeError()} }
+        //bbc.test(Human, 'm', (r)=>r===2) // 引数エラー
+        bbc.test(new Human(), 'm', TypeError)
+    })();
+    ;(function(){
+        class Human { async m() {throw new TypeError('msg')} }
+        //bbc.test(Human, 'm', (r)=>r===2) // 引数エラー
+        bbc.test(new Human(), 'm', TypeError, 'msg')
+        bbc.test(new Human(), 'm', new TypeError('msg'))
+    })();
+    ;(function(){ // 同名 static method もある場合
+        class Human { static async m() {return 1} async m() {throw new TypeError()} }
+        bbc.test(Human, 'm', (r)=>r===1)
+        //bbc.test(new Human(), 'm', (r)=>r===2)
+        bbc.test(new Human(), 'm', TypeError)
+    })();
+    ;(function(){ // 同名 static method もある場合
+        class Human { static async m() {return 1} async m() {throw new TypeError('msg')} }
+        bbc.test(Human, 'm', (r)=>r===1)
+        //bbc.test(new Human(), 'm', (r)=>r===2)
+        bbc.test(new Human(), 'm', TypeError, 'msg')
+        bbc.test(new Human(), 'm', new TypeError('msg'))
+    })();
+
+
+    // 引数あるパターン（コンストラクタ、メソッド、セッター）
+    // 引数あるパターン（コンストラクタ）
+    // コンストラクタは非同期にできないのでテスト不要
+    /*
+    ;(function(){
+        class Human { constructor(n) { this._name = n } }
+        bbc.test(Human, ['山田'], (t)=>t._name==='山田')
+    })();
+    ;(function(){
+        class Human { constructor(n) { throw new TypeError() } }
+        bbc.test(Human, ['山田'], TypeError)
+    })();
+    ;(function(){
+        class Human { constructor(n) { throw new TypeError('msg') } }
+        bbc.test(Human, ['山田'], new TypeError('msg'))
+    })();
+    ;(function(){
+        class Human { constructor(n) { throw new TypeError('msg') } }
+        bbc.test(Human, ['山田'], TypeError, 'msg')
+    })();
+    */
+    // 引数あるパターン（static メソッド）
+    ;(function(){
+        class Human { static async name(v) {return 'static:'+v} constructor(n) { this._name = n } get name(){return this._name} set name(v){this._name=v;} }
+        bbc.test(Human, 'name', ['引数'], (r)=>r==='static:引数') // static method をテスト対象とする
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田') // setter をテスト対象とする
+    })();
+    ;(function(){
+        class Human { static async name(v) {throw new TypeError()} constructor(n) { this._name = n } get name(){return this._name} set name(v){this._name=v;} }
+        //bbc.test(Human, 'name', ['引数'], (r)=>r==='static:引数') // static method をテスト対象とする
+        bbc.test(Human, 'name', ['引数'], TypeError) // static method をテスト対象とする
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田') // setter をテスト対象とする
+    })();
+    ;(function(){
+        class Human { static async name(v) {throw new TypeError('msg')} constructor(n) { this._name = n } get name(){return this._name} set name(v){this._name=v;} }
+        //bbc.test(Human, 'name', ['引数'], (r)=>r==='static:引数') // static method をテスト対象とする
+        bbc.test(Human, 'name', ['引数'], TypeError, 'msg') // static method をテスト対象とする
+        bbc.test(Human, 'name', ['引数'], new TypeError('msg')) // static method をテスト対象とする
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田') // setter をテスト対象とする
+    })();
+    // 引数あるパターン（セッター）：先述にて試験済み。むしろ引数ないパターンがありえないので。
+    // 引数あるパターン（instance メソッド）
+    ;(function(){
+        class Human { async m(v) {return 'instance:'+v} }
+        //bbc.test(Human, 'm', (r)=>r===2) // 引数エラー
+        bbc.test(new Human(), 'm', ['引数'], (r)=>r==='instance:引数')
+    })();
+    ;(function(){ // 同名 static method もある場合
+        class Human { static async m(v) {return `static:${v}`} async m(v) {return `instance:${v}`} }
+        bbc.test(Human, 'm', ['引数'], (r)=>r===`static:引数`)
+        bbc.test(new Human(), 'm', ['引数'], (r)=>r===`instance:引数`)
+    })();
+    ;(function(){
+        class Human { async m(v) {throw new TypeError()} }
+        //bbc.test(Human, 'm', (r)=>r===2) // 引数エラー
+        bbc.test(new Human(), 'm', ['引数'], TypeError)
+    })();
+    ;(function(){
+        class Human { async m(v) {throw new TypeError('msg')} }
+        //bbc.test(Human, 'm', (r)=>r===2) // 引数エラー
+        bbc.test(new Human(), 'm', ['引数'], TypeError, 'msg')
+        bbc.test(new Human(), 'm', ['引数'], new TypeError('msg'))
+    })();
+    ;(function(){ // 同名 static method もある場合
+        class Human { static async m(v) {return `static:${v}`} async m(v) {throw new TypeError()} }
+        bbc.test(Human, 'm', ['引数'], (r)=>r===`static:引数`)
+        bbc.test(new Human(), 'm', ['引数'], TypeError)
+    })();
+    ;(function(){ // 同名 static method もある場合
+        class Human { static async m(v) {return `static:${v}`} async m(v) {throw new TypeError('msg')} }
+        bbc.test(Human, 'm', ['引数'], (r)=>r===`static:引数`)
+        bbc.test(new Human(), 'm', ['引数'], TypeError, 'msg')
+        bbc.test(new Human(), 'm', ['引数'], new TypeError('msg'))
+    })();
+
+
 
     /*
     */
