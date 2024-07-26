@@ -78,6 +78,92 @@ window.addEventListener('DOMContentLoaded', async(event) => {
 
     */
 
+
+    const bbc = new BlackBoxCls(a)
+
+    // クラスの単発テスト
+    // コンストラクタ
+    /*
+    */
+    ;(function(){
+        class Human { constructor(n) { this._name = n } }
+        bbc.test(Human, (t)=>t._name===undefined)
+    })();
+    ;(function(){
+        class Human { constructor(n) { throw new TypeError() } }
+        bbc.test(Human, TypeError)
+    })();
+    ;(function(){
+        class Human { constructor(n) { throw new TypeError('msg') } }
+        bbc.test(Human, TypeError, 'msg')
+    })();
+    ;(function(){
+        class Human { constructor(n) { throw new TypeError('msg') } }
+        bbc.test(Human, new TypeError('msg'))
+    })();
+    // static method
+    ;(function(){
+        class Human { static m() {return 1} }
+        bbc.test(Human, 'm', (r)=>r===1)
+    })();
+    // ゲッター
+    ;(function(){
+        class Human { constructor(n) { this._name = n } get name(){return this._name} }
+        bbc.test(Human, 'name', (r)=>r===undefined)
+    })();
+    ;(function(){
+        class Human { constructor(n) { this._name = n } get name(){return this._name} }
+        bbc.test(new Human('山田'), 'name', (r)=>r==='山田')
+    })();
+    ;(function(){ // セッターもある場合
+        class Human { constructor(n) { this._name = n } get name(){return this._name} set name(v){} }
+        bbc.test(Human, 'name', (r)=>r===undefined)
+    })();
+    ;(function(){ // セッターもある場合
+        class Human { constructor(n) { this._name = n } get name(){return this._name} set name(v){} }
+        bbc.test(new Human('山田'), 'name', (r)=>r==='山田')
+    })();
+    // static method と ゲッター が同名である場合、static methodを優先してテスト対象とする（コンストラクタ表記による同名ゲッターのテスト不可。その場合はインスタンス表記に変えることで可能）
+    ;(function(){
+        class Human { static name() {return 1} constructor(n) { this._name = n } get name(){return this._name} set name(v){} }
+        bbc.test(Human, 'name', (r)=>r===1) // static method をテスト対象とする
+        bbc.test(new Human('山田'), 'name', (r)=>r==='山田') // getter をテスト対象とする
+    })();
+
+    // セッター
+    ;(function(){
+        class Human { constructor(n) { this._name = n } set name(v){this._name=v+v} }
+        //bbc.test(Human, 'name', '山田', (t)=>t._name==='山田山田') // 第一引数がコンストラクタの場合セッター確認させない仕様
+        bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田山田')
+    })();
+    ;(function(){ // ゲッターもある
+        class Human { constructor(n) { this._name = n } set name(v){this._name=v+v} get name(){return this._name}}
+        //bbc.test(Human, 'name', '山田', (t)=>t._name==='山田山田') // 第一引数がコンストラクタの場合セッター確認させない仕様
+        bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田山田')
+    })();
+    // static method, setter がある
+    ;(function(){
+        class Human { static name() {return 1} constructor(n) { this._name = n } set name(v){this._name=v} }
+//        bbc.test(Human, 'name', '山田', (r)=>r===1) // 引数不正エラー
+        bbc.test(Human, 'name', ['山田'], (r)=>r===1)
+        bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田')
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田')
+    })();
+    // static method, getter, setter がある
+    ;(function(){
+        class Human { static name() {return 1} constructor(n) { this._name = n } set name(v){this._name=v} get name(){return this._name} }
+//        bbc.test(Human, 'name', '山田', (r)=>r===1) // 引数不正エラー
+        bbc.test(Human, 'name', ['山田'], (r)=>r===1)
+        bbc.test(new Human(), 'name', '山田', (t)=>t._name==='山田')
+        bbc.test(new Human(), 'name', ['山田'], (t)=>Type.isAry(t._name) && 1===t._name.length && t._name[0]==='山田')
+    })();
+
+    /*
+    */
+
+
+
+    /*
     const bbf = new BlackBoxFn(a)
 
     // 関数の単発テスト
@@ -113,6 +199,9 @@ window.addEventListener('DOMContentLoaded', async(event) => {
         [[9], (r)=>r===10],
         [[-1], (r)=>r===0],
     ])
+    */
+
+
 
     const bb = new BlackBox(a)
     /*

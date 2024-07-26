@@ -25,7 +25,9 @@ class Type {
             // null,undefinedを抜いたprimitive
             ['ValidPrimitive', [['VPrim', 'VP'], (v)=>this.isNullOrUndefined(v) ? false : this.isPrim(v)]],
 
-            ['Class', [['Cls','Constructor'], (v)=>'function'===typeof v && v.toString().match(/^class /)]],
+            //['Class', [['Cls','Constructor'], (v)=>'function'===typeof v && v.toString().match(/^class /)]],
+            //['Class', [['Cls','Constructor'], (v)=>{console.log('?????????'); return (('function'===typeof v) && (v.toString().match(/^class /)));}]],
+            ['Class', [['Cls','Constructor'], (v)=>(('function'===typeof v) && (!!v.toString().match(/^class /)))]],
 //            ['Class', [['Cls','Constructor'], (v)=>{
 //                if ('function'===v.constructor.name) { return false } 
 //                try { new v(); return true; }
@@ -88,7 +90,7 @@ class Type {
             }]],
         ])
         for (let [k,v] of this._names.entries()) {
-            console.log(k,v)
+            //console.log(k,v)
             const fnName = `is${k}`
             const [abbrs, fn] = v
             if ('function'!==typeof fn) { throw new Error(`${fnName}が未定義です。`)}
