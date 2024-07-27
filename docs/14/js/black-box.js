@@ -140,7 +140,8 @@ class BlackBoxCls extends BlackBoxBase {
         if (args.length < 2) return
         if (!Type.isCls(args[0]) && !Type.isIns(args[0])) return
         const l = args.length - 1
-        if (Type.isAry(args[l]) && 2===args.length && 2<=args[l][0].length) { this._multi(l, ...args) } // 複数テスト
+        //if (Type.isAry(args[l]) && 2===args.length && 2<=args[l][0].length) { this._multi(l, ...args) } // 複数テスト
+        if (Type.isAry(args[l])) { this._multi(l, ...args) } // 複数テスト
         else { this._once(l, ...args) } // 単発テスト
     }
     _once(l, ...args) {
@@ -167,6 +168,7 @@ class BlackBoxCls extends BlackBoxBase {
                 return {context:null, target:args[0], args:[], assert:'e', assArgs:{type:args[1], msg:args[l]}, isConstructor:true}
             }
             // static method（引数なし）
+            console.log(args, Type.isCls(args[0]), this._hasMethod(args[0], args[1]))
             if (Type.isCls(args[0]) && this._hasMethod(args[0], args[1])) {
                 const ctx = args[0]
                 const fn = this._getMethodFn(args[0], args[1])
@@ -248,6 +250,7 @@ class BlackBoxCls extends BlackBoxBase {
                 const fn = this._getMethodFn(ctx, args[1])
                 return {context:ctx, target:fn, args:[], assert:'e', assArgs:{type:args[2], msg:args[l]}, isInstanceMethod:true}
             }
+            console.log(args)
             throw new Error(`可変長引数で最初の要素がクラスかインスタンスで要素数が4のとき、その引数が不正でした。`)
         }
         else if (5===args.length) {
@@ -306,6 +309,7 @@ class BlackBoxCls extends BlackBoxBase {
     }
     _hasMethod(ctx, strOrFn) {
         const fnNm = this._getFnNm(strOrFn)
+        //console.log(strOrFn, fnNm, strOrFn.name, Type.hasGetter(ctx, fnNm) , Type.hasSetter(ctx, fnNm) , Type.isFn(ctx[fnNm]))
         return (fnNm
             && !Type.hasGetter(ctx, fnNm) 
             && !Type.hasSetter(ctx, fnNm) 
@@ -325,8 +329,12 @@ class BlackBoxCls extends BlackBoxBase {
         return false
     }
     _getFn(ctx, strOrFn) {
-        if (Type.isStr(strOrFn)) return ctx[args[1]].bind(ctx)
-        else if (Type.isFn(strOrFn)) return ctx[args[1].name].bind(ctx)
+        const fnNm = this._getFnNm(strOrFn)
+        console.log(ctx, fnNm, ctx[fnNm])
+        try { return ctx[fnNm].bind(ctx) } catch(e) { return undefined }
+//        return ctx[fnNm].bind(ctx)
+//        if (Type.isStr(strOrFn)) return ctx[args[1]].bind(ctx)
+//        else if (Type.isFn(strOrFn)) return ctx[args[1].name].bind(ctx)
         throw new Error(`_getFnの第二引数は文字列か関数であるべきです。`)
     }
     _getInouts(l, o, ...args) {
@@ -356,11 +364,30 @@ class BlackBoxCls extends BlackBoxBase {
         return op.target(...op.args)
     }
     _multi(l, ...args) {
-        const context = args[0]
-        const target = (Type.isStr(args[1]) || Type.isFn(args[1])) ? this._getFn(args[0], args[1]) : (Type.isCls(args[0]) ? args[0] : undefined)
-        if (undefined===target) { throw new Error(`可変長引数で最後の要素が配列のとき、二番目の要素が関数かその名前でないなら最初の要素はコンストラクタであるべきです。インスタンスは無効です。`) }
+        let context = args[0]
+        let target = (Type.isStr(args[1]) || Type.isFn(args[1])) ? this._getFn(args[0], args[1]) : (Type.isCls(args[0]) ? args[0] : undefined)
+        if (undefined===target) {
+            if (Type.isCls(context) && (Type.isStr(args[1]) || Type.isFn(args[1]))) {
+                const ins = new args[0]()
+                if (!this._hasGetter(ins, args[1])) {throw new Error(`可変長引数で最後の要素が配列のとき、二番目の要素は関数かその名前でるべきです。最初の要素がコンストラクタのときはゲッターも許可しますが存在しません。`) }
+                /*
+                if (this._hasGetter(ins, args[1])) { context = ins }
+//                target = this._getFn(ins, args[1])
+//                console.log(target, ins, args[1], this._getFn(ins, args[1]))
+//                if (undefined!==target) {context = ins}
+                else { throw new Error(`可変長引数で最後の要素が配列のとき、二番目の要素は関数かその名前でるべきです。最初の要素がコンストラクタのときはゲッターも許可しますが存在しません。`) }
+                */
+            }
+            //if (undefined===target) {
+            //    throw new Error(`可変長引数で最後の要素が配列のとき、二番目の要素が関数かその名前でないなら最初の要素はコンストラクタであるべきです。インスタンスは無効です。`)
+            //} 
+        }
+        if (!Type.isRange(args.length, 2, 3)) { throw new Error(`可変長引数で最後の要素が配列のとき、可変長引数の要素数は2か3のいずれかであるべきです。すなわち[context, patterns]か[context, target, patterns]です。`) }
         for (let io of args[l]) {
-            const ARGS = [context, target, ...io]
+            if (!Type.isAry(io)) { io = [io] }
+            //const ARGS = (3===args.length) ? [context, target, ...io] : [context, ...io]
+            const ARGS = (3===args.length) ? [context, args[1], ...io] : [context, ...io]
+            console.log(ARGS.length, ARGS)
             this._once(ARGS.length-1, ...ARGS)
         }
     }
