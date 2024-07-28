@@ -51,7 +51,7 @@ class BlackBoxBase {
         target: undefined,
         args: [],
         assert: 't',
-        assArgs: (r)=>r===true
+        assArgs: (r)=>r===true,
         tearDown:(t)=>{},
     } }
 }
