@@ -152,6 +152,11 @@ class BlackBoxCls extends BlackBoxBase {
                 const o = {context:null, target:args[0], args:[], isConstructor:true}
                 return this._getInouts(l, o, ...args)
             }
+            // instance
+            if (Type.isIns(args[0])) {
+                const o = {context:args[0], target:null, args:[], isInstance:true}
+                return this._getInouts(l, o, ...args)
+            }
             throw new Error(`可変長引数で最初の要素がクラスかインスタンスで要素数が2のとき最後の要素は関数か例外であるべきです。`)
         }
         else if (3===args.length) {
@@ -346,6 +351,7 @@ class BlackBoxCls extends BlackBoxBase {
             if (Type.isFn(ex)) { return [(()=>ex(new op.target(...op.args)))] }
             else if (Type.isObj(ex)) { return [ex.type, Type.isNU(ex.msg) ? '' : ex.msg, (()=>new op.target(...op.args))] }
         }
+        else if (null===op.target && Type.isIns(op.context) && Type.isFn(ex)) { return [()=>ex(op.context)] }
         throw new Error(`関数テストの引数不正です。引数は正常系[fn, args, testCodeFn]か異常系[fn, Error, 'msg']のいずれかであるべきです。: ${op.fn}, ${ex}`)
     }
     _getRunFn(op) {
