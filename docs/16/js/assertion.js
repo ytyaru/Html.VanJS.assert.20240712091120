@@ -300,7 +300,7 @@ class BoolAssertion extends BaseAssertion {
         // テスト例外。テストコードは最後に真偽値を返してください。
         if (!this.__isBool(bool)) {
             this._count.exception++
-            return this._console('fail', this._M.msg.normal.exception.fnReturn, this._caller)
+            return this._console('exception', this._M.msg.normal.exception.fnReturn, this._caller)
         }
         // テスト失敗：Eであるべき所がAです。
         else if (this._isFalseSuccess ? bool : !bool) {
