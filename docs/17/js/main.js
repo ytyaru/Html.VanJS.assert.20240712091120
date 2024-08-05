@@ -74,9 +74,7 @@ window.addEventListener('DOMContentLoaded', async(event) => {
     a.t(async()=>await t.getTrueAsync())
     a.t(async()=>await t.getFalseAsync())
     */
-
-
-
+    a.e(Error, /^例外文言です/, ()=>{throw new Error(`例外文言ですが何か問題でも？`)})
 
 
 

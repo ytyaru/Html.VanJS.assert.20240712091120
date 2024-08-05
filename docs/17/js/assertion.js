@@ -406,7 +406,7 @@ class ExceptionAssertion extends BaseAssertion {
     __eCheckMsgMsg(msg, err) {
         if (Type.isNU(msg) || ''===msg) { return '' } // null, undefined, ''ならテスト不要
         if (msg instanceof RegExp) {
-            if (msg.test(msg)) { return '' }
+            if (msg.test(err.message)) { return '' }
             // `メッセージが違います。\n期待値: ${msg}\n実際値: ${err.message}`
             return this._M.msg.exception.runtime.msg(msg, err.message)
         }
